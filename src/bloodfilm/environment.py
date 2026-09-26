@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 
 
-def capture_environment_report(project_root: Path | str = Path.cwd()) -> dict[str, Any]:
-    root = Path(project_root)
+def capture_environment_report(project_root: Path | str | None = None) -> dict[str, Any]:
+    root = Path(project_root) if project_root is not None else Path.cwd()
     return {
         "python": {
             "version": sys.version,

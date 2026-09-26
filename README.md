@@ -29,9 +29,17 @@ Future placeholders not validated in M0/M1 (kept for later milestones, not wired
 ```bash
 PYTHONPATH=src python3 -m bloodfilm.cli environment --output outputs/reports/environment.json
 PYTHONPATH=src python3 -m bloodfilm.cli smoke --config configs/base.yaml
-PYTHONPATH=src python3 -m bloodfilm.cli data build-manifest --dataset-root data/raw/MLL23 --mapping configs/mappings/mll23.yaml --output data/manifests/mll23_manifest.csv --invalid-output data/manifests/mll23_invalid.csv --checksum-output data/manifests/mll23_checksums.csv --report-output outputs/reports/mll23_audit.json
-PYTHONPATH=src python3 -m bloodfilm.cli data split --manifest data/manifests/mll23_manifest.csv --output data/manifests/mll23_splits.csv --report-output outputs/reports/mll23_leakage_report.json
+PYTHONPATH=src python3 -m bloodfilm.cli assets list --output outputs/reports/assets.json
+PYTHONPATH=src python3 -m bloodfilm.cli assets download mll23 --report-output outputs/reports/mll23_download.json
+PYTHONPATH=src python3 -m bloodfilm.cli assets verify mll23 --report-output outputs/reports/mll23_verify.json
+PYTHONPATH=src python3 -m bloodfilm.cli dataset audit mll23 --report-output outputs/reports/mll23_audit.json
+PYTHONPATH=src python3 -m bloodfilm.cli dataset build-manifest mll23 --output data/manifests/mll23_manifest.csv --invalid-output data/manifests/mll23_invalid.csv --checksum-output data/manifests/mll23_checksums.csv --report-output outputs/reports/mll23_audit.json
+PYTHONPATH=src python3 -m bloodfilm.cli dataset split --manifest data/manifests/mll23_manifest.csv --output data/manifests/mll23_splits.csv --report-output outputs/reports/mll23_leakage_report.json
 ```
+
+The `data` command group remains as an alias of `dataset`. The `scripts/` wrappers
+(`audit_dataset.py`, `build_manifest.py`, `download_assets.py`) only parse arguments
+and call the `bloodfilm.data` package.
 
 `configs/*.yaml` are JSON-compatible YAML so the scaffold runs before optional ML/YAML dependencies are installed. Install the `ml` extra before model training milestones.
 

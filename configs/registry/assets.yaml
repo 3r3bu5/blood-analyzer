@@ -11,7 +11,12 @@
       "local_path": "data/raw/MLL23",
       "checksum_manifest": "data/manifests/mll23_checksums.csv",
       "label_mapping": "configs/mappings/mll23.yaml",
-      "grouping_field": "patient_or_source_group"
+      "grouping_field": "patient_or_source_group",
+      "files": [],
+      "acquisition": {
+        "zenodo_api": "https://zenodo.org/api/records/14277609",
+        "note": "No file entries recorded yet. Query the Zenodo API for the official file list and MD5 checksums, then append {filename, url, md5} entries to files before running assets download."
+      }
     }
   ],
   "models": [

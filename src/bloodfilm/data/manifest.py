@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bloodfilm.data.mappings import load_label_mapping
+from bloodfilm.documents import write_json
 from bloodfilm.errors import (
     ImageDecodeError,
     InputNotFoundError,
@@ -143,3 +144,39 @@ def _source_folder(root: Path, image_path: Path) -> str:
     if len(relative.parts) < 2:
         return ""
     return relative.parts[0]
+
+
+def manifest_audit_report(result: ManifestBuildResult) -> dict[str, object]:
+    invalid_by_reason: dict[str, int] = {}
+    for row in result.invalid_rows:
+        invalid_by_reason[row.reason] = invalid_by_reason.get(row.reason, 0) + 1
+    return {
+        "valid_image_count": len(result.valid_rows),
+        "invalid_item_count": len(result.invalid_rows),
+        "class_distribution": result.class_distribution,
+        "invalid_by_reason": dict(sorted(invalid_by_reason.items())),
+        "grouping_status": "unverified_image_level_surrogate",
+        "independence_claim": False,
+        "leakage_note": (
+            "M0/M1 scaffold assigns one surrogate group per image until official MLL23 grouping "
+            "metadata is available. Random image-level independence is not claimed."
+        ),
+    }
+
+
+def run_build_manifest(
+    dataset_root: Path | str,
+    mapping_path: Path | str,
+    *,
+    output: Path | str,
+    invalid_output: Path | str,
+    checksum_output: Path | str,
+    report_output: Path | str,
+) -> Path:
+    result = build_mll23_manifest(dataset_root, mapping_path)
+    write_manifest(output, result.valid_rows)
+    write_invalid_manifest(invalid_output, result.invalid_rows)
+    write_checksum_manifest(checksum_output, result.valid_rows)
+    report_path = Path(report_output)
+    write_json(report_path, manifest_audit_report(result))
+    return report_path

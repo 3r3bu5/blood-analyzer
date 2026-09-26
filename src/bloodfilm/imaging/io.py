@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import struct
 import zlib
+from dataclasses import dataclass
+from pathlib import Path
 
 from bloodfilm.errors import ImageDecodeError, InputNotFoundError, UnsupportedImageFormatError
 

@@ -34,3 +34,11 @@ class ModelLoadError(BloodFilmError):
 
 class MappingError(BloodFilmError):
     code = "LABEL_MAPPING_ERROR"
+
+
+class ChecksumMismatchError(BloodFilmError):
+    code = "CHECKSUM_MISMATCH"
+
+
+class DownloadError(BloodFilmError):
+    code = "DOWNLOAD_ERROR"

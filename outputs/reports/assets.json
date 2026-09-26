@@ -1,0 +1,17 @@
+{
+  "datasets": {
+    "MLL23": {
+      "file_count": 0,
+      "local_path": "data/raw/MLL23",
+      "present": false,
+      "source_url": "https://zenodo.org/records/14277609"
+    }
+  },
+  "models": {
+    "DinoBloom-B": {
+      "local_path": "models/backbones/dinobloom-b.pth",
+      "present": false
+    }
+  },
+  "schema_version": 1
+}

@@ -1,9 +1,8 @@
 from pathlib import Path
 
-from bloodfilm.data.manifests import build_mll23_manifest
+from bloodfilm.data.manifest import build_mll23_manifest
 from bloodfilm.data.splits import create_split_manifest
 from bloodfilm.schemas import MLL23_CANONICAL_CLASSES
-
 from tests.helpers.png import write_rgb_png
 
 

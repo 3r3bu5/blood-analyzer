@@ -1,0 +1,16 @@
+{
+  "config": "configs/base.yaml",
+  "dinobloom_b": {
+    "blocker": "DinoBloom-B weights are not present. Download the selected artifact explicitly, record its license and SHA-256 in configs/registry/assets.yaml, then rerun smoke.",
+    "embedding_shape": null,
+    "expected_embedding_dim": 768,
+    "status": "blocked",
+    "variant": "DinoBloom-B",
+    "weight_path": "models/backbones/dinobloom-b.pth",
+    "weight_sha256": null
+  },
+  "sample_image": {
+    "blocker": "No image supplied. Provide --image or place microscope fields under data/microscope_samples/raw_fields.",
+    "status": "blocked"
+  }
+}

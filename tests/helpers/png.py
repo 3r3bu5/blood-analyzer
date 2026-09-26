@@ -1,6 +1,6 @@
-from pathlib import Path
 import struct
 import zlib
+from pathlib import Path
 
 
 def write_rgb_png(

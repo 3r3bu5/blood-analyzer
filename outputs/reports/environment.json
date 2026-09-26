@@ -1,0 +1,46 @@
+{
+  "git": {
+    "available": true,
+    "commit": "eaa5ead2b7004eb99f9ffaf4e90bafee42b33b1c",
+    "dirty": true,
+    "note": null
+  },
+  "packages": {
+    "Pillow": null,
+    "PyYAML": null,
+    "albumentations": null,
+    "matplotlib": null,
+    "mypy": null,
+    "numpy": null,
+    "opencv-python-headless": null,
+    "pandas": null,
+    "pydantic": null,
+    "pytest": "9.0.3",
+    "rich": null,
+    "ruff": null,
+    "scikit-learn": null,
+    "scipy": null,
+    "seaborn": null,
+    "timm": null,
+    "torch": null,
+    "torchvision": null,
+    "tqdm": null,
+    "typer": null,
+    "ultralytics": null
+  },
+  "paths": {
+    "dinobloom_b_weights_exist": false,
+    "microscope_samples_exist": false,
+    "mll23_root_exists": false,
+    "project_root": "/home/ash/Desktop/projects/blood"
+  },
+  "platform": {
+    "machine": "x86_64",
+    "release": "7.0.0-31-generic",
+    "system": "Linux"
+  },
+  "python": {
+    "executable": "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+    "version": "3.14.7 (main, Aug  5 2026, 10:29:49) [GCC 13.3.0]"
+  }
+}

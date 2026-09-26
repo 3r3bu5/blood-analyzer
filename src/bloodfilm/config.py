@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -58,13 +58,13 @@ class DetectorConfig:
 
 @dataclass(frozen=True)
 class AppConfig:
-    project: ProjectConfig = ProjectConfig()
-    quality: QualityConfig = QualityConfig()
-    imaging: ImagingConfig = ImagingConfig()
-    classifier: ClassifierConfig = ClassifierConfig()
-    dataset: DatasetConfig = DatasetConfig()
-    registry: RegistryConfig = RegistryConfig()
-    detector: DetectorConfig = DetectorConfig()
+    project: ProjectConfig = field(default_factory=ProjectConfig)
+    quality: QualityConfig = field(default_factory=QualityConfig)
+    imaging: ImagingConfig = field(default_factory=ImagingConfig)
+    classifier: ClassifierConfig = field(default_factory=ClassifierConfig)
+    dataset: DatasetConfig = field(default_factory=DatasetConfig)
+    registry: RegistryConfig = field(default_factory=RegistryConfig)
+    detector: DetectorConfig = field(default_factory=DetectorConfig)
 
 
 def load_config(path: Path | str) -> AppConfig:

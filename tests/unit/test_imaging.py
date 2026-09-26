@@ -2,7 +2,6 @@ from pathlib import Path
 
 from bloodfilm.imaging.io import ImageData, load_image
 from bloodfilm.imaging.quality import QualityConfig, assess_quality
-
 from tests.helpers.png import write_rgb_png
 
 
