@@ -1,4 +1,9 @@
 from bloodfilm.data.audit import audit_dataset, manifest_audit_report
+from bloodfilm.data.completion import (
+    dataset_completion_status,
+    require_complete_dataset,
+    write_completion_record,
+)
 from bloodfilm.data.dataset import ManifestImageDataset, default_image_loader
 from bloodfilm.data.downloader import (
     DownloadFile,
@@ -39,6 +44,7 @@ __all__ = [
     "build_mll23_manifest",
     "create_leakage_report",
     "create_split_manifest",
+    "dataset_completion_status",
     "default_image_loader",
     "download_dataset",
     "download_files",
@@ -48,11 +54,13 @@ __all__ = [
     "list_assets",
     "manifest_audit_report",
     "read_manifest",
+    "require_complete_dataset",
     "resolve_dataset_paths",
     "run_build_manifest",
     "verify_downloads",
     "verify_file",
     "write_checksum_manifest",
+    "write_completion_record",
     "write_invalid_manifest",
     "write_manifest",
     "write_split_manifest",

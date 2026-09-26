@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from bloodfilm.errors import ModelLoadError
+from bloodfilm.ml import require_torch
 from bloodfilm.schemas import ManifestRow
 
 RowLoader = Callable[[ManifestRow], Any]
@@ -37,12 +38,12 @@ class ManifestImageDataset:
 
 
 def default_image_loader(row: ManifestRow) -> Any:
+    torch = require_torch("The default image loader")
     try:
-        import torch  # type: ignore[import-not-found]
         from PIL import Image  # type: ignore[import-not-found]
     except ModuleNotFoundError as exc:
         raise ModelLoadError(
-            "The default image loader requires torch and Pillow; "
+            "The default image loader requires Pillow; "
             "install the ml extras or pass an explicit loader"
         ) from exc
     with Image.open(Path(row.image_path)) as image:

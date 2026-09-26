@@ -40,6 +40,11 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "requires_data: requires an external dataset on disk",
+    "requires_model: requires downloaded model weights",
+    "slow: long-running test",
+]
 
 [tool.mypy]
 python_version = "3.11"

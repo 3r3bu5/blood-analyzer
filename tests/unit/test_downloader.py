@@ -197,6 +197,9 @@ def test_download_dataset_end_to_end_through_registry(tmp_path: Path) -> None:
     assert first["files"][0]["verified"] is True
     assert (dest_root / "MLL23" / "mll23" / "Basophil" / "cell.png").read_bytes() == b"pixels"
 
+    completion = json.loads((dest_root / "MLL23" / ".complete.json").read_text(encoding="utf-8"))
+    assert completion["verified"] is True
+
     verified = verify_downloads("MLL23", registry, dest_root, tmp_path / "verify.json")
 
     assert verified["status"] == "complete"

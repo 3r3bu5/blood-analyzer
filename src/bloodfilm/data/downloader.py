@@ -10,6 +10,7 @@ from typing import Any, Literal
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from bloodfilm.data.completion import write_completion_record
 from bloodfilm.data.integrity import verify_file
 from bloodfilm.data.registry import RegistryDataset, RegistryFile, get_dataset
 from bloodfilm.documents import write_json
@@ -73,6 +74,7 @@ def download_dataset(
             dest_dir,
         )
         report = {"dataset": dataset.name, **downloaded}
+        write_completion_record(dest_dir, dataset=dataset.name, file_count=len(dataset.files))
     if report_path is not None:
         write_json(report_path, report)
     return report

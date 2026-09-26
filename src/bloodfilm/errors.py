@@ -28,6 +28,10 @@ class MissingAssetError(BloodFilmError):
     code = "MISSING_ASSET"
 
 
+class DatasetNotAvailableError(BloodFilmError):
+    code = "DATASET_NOT_AVAILABLE"
+
+
 class ModelLoadError(BloodFilmError):
     code = "MODEL_LOAD_ERROR"
 

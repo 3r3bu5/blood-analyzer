@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
 
-from bloodfilm.classification.dinobloom import smoke_dinobloom_b
+from bloodfilm.classification.dinobloom import require_dinobloom_b_weights, smoke_dinobloom_b
 from bloodfilm.config import load_config
 from bloodfilm.data import (
     audit_dataset,
@@ -14,6 +15,7 @@ from bloodfilm.data import (
     download_dataset,
     list_assets,
     read_manifest,
+    require_complete_dataset,
     resolve_dataset_paths,
     run_build_manifest,
     verify_downloads,
@@ -105,6 +107,23 @@ def build_parser() -> argparse.ArgumentParser:
     assets_verify.add_argument("--dest-root", type=Path, default=Path("data/raw"))
     assets_verify.add_argument("--report-output", type=Path, required=True)
     assets_verify.set_defaults(handler=_assets_verify)
+
+    config = subcommands.add_parser("config", help="Configuration utilities")
+    config_subcommands = config.add_subparsers(required=True)
+
+    config_validate = config_subcommands.add_parser("validate", help="Validate a config file")
+    config_validate.add_argument("--config", type=Path, default=Path("configs/base.yaml"))
+    config_validate.set_defaults(handler=_config_validate)
+
+    train = subcommands.add_parser("train", help="Model training entry points")
+    train_subcommands = train.add_subparsers(required=True)
+
+    train_classifier = train_subcommands.add_parser("classifier", help="Train the classifier head")
+    train_classifier.add_argument(
+        "--config", type=Path, default=Path("configs/classifier_mll23.yaml")
+    )
+    train_classifier.add_argument("--head", type=str, default=None)
+    train_classifier.set_defaults(handler=_train_classifier)
 
     split = data_subcommands.add_parser(
         "split", help="Create deterministic train/validation/test split"
@@ -217,6 +236,34 @@ def _assets_verify(args: argparse.Namespace) -> int:
     verify_downloads(args.name, args.registry, args.dest_root, args.report_output)
     print(args.report_output)
     return 0
+
+
+def _config_validate(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    summary = {
+        "config": str(args.config),
+        "backbone": config.classifier.backbone,
+        "head": config.classifier.head,
+        "num_classes": config.classifier.num_classes,
+        "weights": str(config.classifier.weights),
+        "class_names_file": str(config.classifier.class_names_file),
+        "mll23_root": str(config.dataset.mll23_root),
+        "seed": config.project.seed,
+    }
+    print(json.dumps(summary, indent=2, sort_keys=True))
+    return 0
+
+
+def _train_classifier(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    require_complete_dataset(config.dataset.mll23_root, dataset="mll23")
+    require_dinobloom_b_weights(config.classifier.weights)
+    head = args.head or config.classifier.head or "linear"
+    raise ConfigError(
+        f"Head training ({head}) needs cached Stage A embeddings, which require "
+        "DinoBloom-B extraction over the MLL23 manifest. Embedding extraction is not "
+        "implemented yet; see the M2 classifier baseline milestone."
+    )
 
 
 def _split(args: argparse.Namespace) -> int:

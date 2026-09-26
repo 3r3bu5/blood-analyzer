@@ -1,7 +1,7 @@
 import pytest
 
 from bloodfilm.data.dataset import ManifestImageDataset, default_image_loader
-from bloodfilm.errors import ModelLoadError
+from bloodfilm.errors import ConfigError, ModelLoadError
 from bloodfilm.schemas import ManifestRow
 
 
@@ -44,7 +44,7 @@ def test_manifest_dataset_rejects_unknown_label() -> None:
 def test_default_loader_requires_ml_dependencies() -> None:
     try:
         default_image_loader(_row("aaa", "basophil"))
-    except ModelLoadError as exc:
-        assert "torch" in str(exc).lower() or "pillow" in str(exc).lower()
+    except (ConfigError, ModelLoadError) as exc:
+        assert "ml extras" in str(exc).lower()
     else:
         pytest.skip("ML dependencies are installed; default loader is operational")
