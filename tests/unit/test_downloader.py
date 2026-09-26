@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import http.server
+import json
 import threading
 import zipfile
 from pathlib import Path
@@ -9,7 +10,12 @@ from urllib.request import pathname2url
 
 import pytest
 
-from bloodfilm.data.downloader import DownloadFile, download_files
+from bloodfilm.data.downloader import (
+    DownloadFile,
+    download_dataset,
+    download_files,
+    verify_downloads,
+)
 from bloodfilm.data.integrity import hash_file
 from bloodfilm.errors import ChecksumMismatchError, DownloadError
 
@@ -145,3 +151,58 @@ def _serve_directory(root: Path) -> http.server.ThreadingHTTPServer:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server
+
+
+def _registry_with_files(tmp_path: Path, source_zip: Path, checksum: str) -> Path:
+    registry = tmp_path / "assets.yaml"
+    registry.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "datasets": [
+                    {
+                        "name": "MLL23",
+                        "local_path": "data/raw/MLL23",
+                        "label_mapping": "configs/mappings/mll23.yaml",
+                        "grouping_field": "patient_or_source_group",
+                        "files": [
+                            {
+                                "filename": "mll23.zip",
+                                "url": _file_url(source_zip),
+                                "md5": checksum,
+                                "extract": True,
+                            }
+                        ],
+                    }
+                ],
+                "models": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return registry
+
+
+def test_download_dataset_end_to_end_through_registry(tmp_path: Path) -> None:
+    source_zip = tmp_path / "mll23.zip"
+    with zipfile.ZipFile(source_zip, "w") as archive:
+        archive.writestr("Basophil/cell.png", b"pixels")
+    registry = _registry_with_files(tmp_path, source_zip, hash_file(source_zip, "md5"))
+    dest_root = tmp_path / "raw"
+
+    first = download_dataset("MLL23", registry, dest_root, tmp_path / "first.json")
+
+    assert first["status"] == "complete"
+    assert first["files"][0]["status"] == "downloaded"
+    assert first["files"][0]["verified"] is True
+    assert (dest_root / "MLL23" / "mll23" / "Basophil" / "cell.png").read_bytes() == b"pixels"
+
+    verified = verify_downloads("MLL23", registry, dest_root, tmp_path / "verify.json")
+
+    assert verified["status"] == "complete"
+    assert verified["files"][0]["status"] == "verified"
+
+    second = download_dataset("MLL23", registry, dest_root, tmp_path / "second.json")
+
+    assert second["status"] == "complete"
+    assert second["files"][0]["status"] == "skipped_verified"

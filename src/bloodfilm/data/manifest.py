@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections import Counter
 import csv
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,9 +15,9 @@ from bloodfilm.errors import (
 )
 from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, load_image
 from bloodfilm.schemas import (
+    MLL23_CANONICAL_CLASSES,
     UNGROUPED_GROUP_PREFIX,
     InvalidManifestRow,
-    MLL23_CANONICAL_CLASSES,
     ManifestRow,
 )
 from bloodfilm.util import sha256_file, write_csv_rows

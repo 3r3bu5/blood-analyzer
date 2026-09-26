@@ -4,9 +4,9 @@
 __pycache__/
 *.py[cod]
 .venv/
-data/
-models/*
-!models/.gitkeep
-outputs/*
-!outputs/.gitkeep
-!outputs/reports/
+/data/
+/models/*
+!/models/.gitkeep
+/outputs/*
+!/outputs/.gitkeep
+!/outputs/reports/

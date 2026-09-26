@@ -30,11 +30,11 @@ from bloodfilm.data.splits import (
 )
 
 __all__ = [
+    "DownloadFile",
     "ManifestBuildResult",
     "ManifestImageDataset",
     "RegistryDataset",
     "RegistryFile",
-    "DownloadFile",
     "audit_dataset",
     "build_mll23_manifest",
     "create_leakage_report",
