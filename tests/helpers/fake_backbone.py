@@ -13,7 +13,7 @@ def fake_embedding_bank(
 
     Requires torch; callers must ``pytest.importorskip("torch")`` first.
     """
-    import torch  # type: ignore[import-not-found]
+    import torch
 
     generator = torch.Generator().manual_seed(seed)
     chunks = []

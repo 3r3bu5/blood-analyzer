@@ -10,8 +10,8 @@ from tests.helpers.png import write_rgb_png
 
 def _ml_available() -> bool:
     try:
-        import torch  # type: ignore[import-not-found]  # noqa: F401
-        from PIL import Image  # type: ignore[import-not-found]  # noqa: F401
+        import torch  # noqa: F401
+        from PIL import Image  # noqa: F401
     except ModuleNotFoundError:
         return False
     return True

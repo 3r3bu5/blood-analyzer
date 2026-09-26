@@ -7,7 +7,7 @@ from bloodfilm.errors import BloodFilmError, ConfigError
 
 def require_torch(feature: str, error: type[BloodFilmError] = ConfigError) -> Any:
     try:
-        import torch  # type: ignore[import-not-found]
+        import torch
     except ModuleNotFoundError as exc:
         raise error(f"{feature} requires torch; install the ml extras first") from exc
     return torch

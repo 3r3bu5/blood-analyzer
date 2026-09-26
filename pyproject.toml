@@ -47,9 +47,23 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+# 3.12 so bundled third-party stubs using PEP 695 syntax still parse; ruff's
+# py311 target below keeps our own code importable on 3.11.
+python_version = "3.12"
 strict = true
 mypy_path = "src"
+
+# Optional ML/vision backends are absent in minimal checkouts, and some bundled
+# stubs are newer than our target version; treat them as opaque Any.
+[[tool.mypy.overrides]]
+module = [
+  "PIL", "PIL.*",
+  "numpy", "numpy.*",
+  "torch", "torch.*",
+  "torchvision", "torchvision.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.ruff]
 line-length = 100

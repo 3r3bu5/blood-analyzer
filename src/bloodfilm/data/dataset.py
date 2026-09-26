@@ -40,7 +40,7 @@ class ManifestImageDataset:
 def default_image_loader(row: ManifestRow) -> Any:
     torch = require_torch("The default image loader")
     try:
-        from PIL import Image  # type: ignore[import-not-found]
+        from PIL import Image
     except ModuleNotFoundError as exc:
         raise ModelLoadError(
             "The default image loader requires Pillow; "

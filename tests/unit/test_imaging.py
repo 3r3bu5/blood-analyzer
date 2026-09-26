@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from bloodfilm.imaging.io import ImageData, load_image
+import pytest
+
+from bloodfilm.errors import ImageDecodeError, InputNotFoundError, UnsupportedImageFormatError
+from bloodfilm.imaging.io import ImageData, load_image, probe_image
 from bloodfilm.imaging.quality import QualityConfig, assess_quality
 from tests.helpers.png import write_rgb_png
 
@@ -39,6 +42,40 @@ def test_load_image_reads_png_and_quality_uses_configured_thresholds(
     assert quality.status == "review_quality"
     assert quality.dark_fraction == 0.25
     assert "dark_fraction_at_limit" in quality.reasons
+
+
+def test_probe_image_reads_png_dimensions_without_decoding_pixels(
+    tmp_path: Path,
+) -> None:
+    image_path = tmp_path / "field.png"
+    write_rgb_png(image_path, width=4, height=2, pixels=[(9, 9, 9)] * 8)
+
+    metadata = probe_image(image_path)
+
+    assert (metadata.width, metadata.height, metadata.mode) == (4, 2, "RGB")
+
+
+def test_probe_image_rejects_missing_and_unsupported_files(tmp_path: Path) -> None:
+    with pytest.raises(InputNotFoundError):
+        probe_image(tmp_path / "absent.png")
+    notes = tmp_path / "notes.txt"
+    notes.write_text("not an image", encoding="utf-8")
+    with pytest.raises(UnsupportedImageFormatError):
+        probe_image(notes)
+    broken = tmp_path / "broken.png"
+    broken.write_bytes(b"\x89PNG\r\n\x1a\nshort")
+    with pytest.raises(ImageDecodeError):
+        probe_image(broken)
+
+
+def test_probe_image_reads_tiff_header(tmp_path: Path) -> None:
+    pil = pytest.importorskip("PIL.Image", reason="TIFF probe needs Pillow")
+    image_path = tmp_path / "cell.tif"
+    pil.new("L", (6, 3), color=200).save(image_path)
+
+    metadata = probe_image(image_path)
+
+    assert (metadata.width, metadata.height, metadata.mode) == (6, 3, "L")
 
 
 def test_quality_marks_too_small_images_unusable() -> None:

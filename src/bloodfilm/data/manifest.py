@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import sys
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +14,7 @@ from bloodfilm.errors import (
     MappingError,
     UnsupportedImageFormatError,
 )
-from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, load_image
+from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, probe_image
 from bloodfilm.schemas import (
     MLL23_CANONICAL_CLASSES,
     UNGROUPED_GROUP_PREFIX,
@@ -30,7 +31,9 @@ class ManifestBuildResult:
     class_distribution: dict[str, int]
 
 
-def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> ManifestBuildResult:
+def build_mll23_manifest(
+    dataset_root: Path | str, mapping_path: Path | str, *, progress_every: int = 5000
+) -> ManifestBuildResult:
     root = Path(dataset_root)
     mapping = load_label_mapping(mapping_path)
     if not root.exists():
@@ -39,7 +42,10 @@ def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> 
         raise MappingError("MLL23 mapping must contain the exact ordered 18 canonical classes")
     valid: list[ManifestRow] = []
     invalid: list[InvalidManifestRow] = []
-    for image_path in _iter_dataset_files(root):
+    files = _iter_dataset_files(root)
+    for scanned, image_path in enumerate(files, start=1):
+        if scanned % progress_every == 0:
+            print(f"manifest: scanned {scanned}/{len(files)} files", file=sys.stderr)
         source_folder = _source_folder(root, image_path)
         if image_path.suffix.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
             invalid.append(
@@ -63,7 +69,7 @@ def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> 
             )
             continue
         try:
-            image = load_image(image_path)
+            metadata = probe_image(image_path)
         except (ImageDecodeError, UnsupportedImageFormatError) as exc:
             invalid.append(
                 InvalidManifestRow(
@@ -83,9 +89,9 @@ def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> 
                 source_folder=source_folder,
                 canonical_label=canonical,
                 sha256=checksum,
-                width=image.width,
-                height=image.height,
-                mode=image.mode,
+                width=metadata.width,
+                height=metadata.height,
+                mode=metadata.mode,
                 patient_or_source_group=f"{UNGROUPED_GROUP_PREFIX}{checksum}",
             )
         )

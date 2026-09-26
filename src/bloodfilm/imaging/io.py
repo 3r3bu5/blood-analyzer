@@ -35,9 +35,45 @@ def load_image(path: Path | str) -> ImageData:
     return _load_with_pillow(image_path)
 
 
+@dataclass(frozen=True)
+class ImageMetadata:
+    path: Path
+    width: int
+    height: int
+    mode: str
+
+
+def probe_image(path: Path | str) -> ImageMetadata:
+    """Read image dimensions and mode from the file header without decoding pixels."""
+    image_path = Path(path)
+    if not image_path.exists():
+        raise InputNotFoundError(f"Image not found: {image_path}")
+    suffix = image_path.suffix.lower()
+    if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
+        raise UnsupportedImageFormatError(f"Unsupported image extension: {suffix}")
+    if suffix == ".png":
+        width, height, color_type = _read_png_header(image_path.read_bytes(), image_path)
+        return ImageMetadata(
+            path=image_path, width=width, height=height, mode=_PNG_MODES[color_type]
+        )
+    try:
+        from PIL import Image
+    except ModuleNotFoundError as exc:
+        raise ImageDecodeError(
+            f"Decoding {image_path.suffix} requires Pillow or OpenCV; install the ml extras"
+        ) from exc
+    try:
+        with Image.open(image_path) as image:
+            return ImageMetadata(
+                path=image_path, width=image.width, height=image.height, mode=image.mode
+            )
+    except Exception as exc:
+        raise ImageDecodeError(f"Could not read image header: {image_path}") from exc
+
+
 def _load_with_pillow(path: Path) -> ImageData:
     try:
-        from PIL import Image  # type: ignore[import-not-found]
+        from PIL import Image
     except ModuleNotFoundError as exc:
         raise ImageDecodeError(
             f"Decoding {path.suffix} requires Pillow or OpenCV; install the ml extras"
@@ -53,43 +89,27 @@ def _load_with_pillow(path: Path) -> ImageData:
         raise ImageDecodeError(f"Could not decode image: {path}") from exc
 
 
+_PNG_MODES = {0: "L", 2: "RGB", 6: "RGBA"}
+
+
 def _load_png(path: Path) -> ImageData:
     data = path.read_bytes()
-    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
-        raise ImageDecodeError(f"Invalid PNG signature: {path}")
+    width, height, color_type = _read_png_header(data, path)
 
-    offset = 8
-    width = height = bit_depth = color_type = None
+    channels = {0: 1, 2: 3, 6: 4}[color_type]
+    stride = width * channels
     compressed = bytearray()
+    offset = 8
     while offset < len(data):
-        if offset + 8 > len(data):
-            raise ImageDecodeError(f"Truncated PNG chunk header: {path}")
         length = struct.unpack(">I", data[offset : offset + 4])[0]
         kind = data[offset + 4 : offset + 8]
         payload_start = offset + 8
         payload_end = payload_start + length
-        payload = data[payload_start:payload_end]
-        offset = payload_end + 4
-        if kind == b"IHDR":
-            width, height, bit_depth, color_type, compression, filter_method, interlace = (
-                struct.unpack(">IIBBBBB", payload)
-            )
-            if compression != 0 or filter_method != 0 or interlace != 0:
-                raise ImageDecodeError(f"Unsupported PNG encoding settings: {path}")
-        elif kind == b"IDAT":
-            compressed.extend(payload)
+        if kind == b"IDAT":
+            compressed.extend(data[payload_start:payload_end])
         elif kind == b"IEND":
             break
-
-    if width is None or height is None or bit_depth is None or color_type is None:
-        raise ImageDecodeError(f"PNG missing IHDR: {path}")
-    if bit_depth != 8 or color_type not in {0, 2, 6}:
-        raise ImageDecodeError(
-            "Only 8-bit grayscale/RGB/RGBA PNG images are supported without Pillow"
-        )
-
-    channels = {0: 1, 2: 3, 6: 4}[color_type]
-    stride = width * channels
+        offset = payload_end + 4
     try:
         raw = zlib.decompress(bytes(compressed))
     except zlib.error as exc:
@@ -106,6 +126,33 @@ def _load_png(path: Path) -> ImageData:
             else:
                 rgb.extend(row[start : start + 3])
     return ImageData(path=path, width=width, height=height, mode="RGB", pixels=bytes(rgb))
+
+
+def _read_png_header(data: bytes, path: Path) -> tuple[int, int, int]:
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ImageDecodeError(f"Invalid PNG signature: {path}")
+    offset = 8
+    while offset < len(data):
+        if offset + 8 > len(data):
+            raise ImageDecodeError(f"Truncated PNG chunk header: {path}")
+        length = struct.unpack(">I", data[offset : offset + 4])[0]
+        kind = data[offset + 4 : offset + 8]
+        payload = data[offset + 8 : offset + 8 + length]
+        offset = offset + 8 + length + 4
+        if kind == b"IHDR":
+            width, height, bit_depth, color_type, compression, filter_method, interlace = (
+                struct.unpack(">IIBBBBB", payload)
+            )
+            if compression != 0 or filter_method != 0 or interlace != 0:
+                raise ImageDecodeError(f"Unsupported PNG encoding settings: {path}")
+            if bit_depth != 8 or color_type not in _PNG_MODES:
+                raise ImageDecodeError(
+                    "Only 8-bit grayscale/RGB/RGBA PNG images are supported without Pillow"
+                )
+            return width, height, color_type
+        if kind == b"IEND":
+            break
+    raise ImageDecodeError(f"PNG missing IHDR: {path}")
 
 
 def _unfilter_png_rows(

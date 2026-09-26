@@ -1,4 +1,4 @@
-.PHONY: help test lint typecheck environment smoke assets-list dataset-audit docker-build docker-test docker-config
+.PHONY: help test lint typecheck environment smoke assets-list dataset-audit docker-build docker-test docker-config provision
 
 help:
 	@echo "Targets:"
@@ -33,6 +33,11 @@ assets-list:
 
 dataset-audit:
 	PYTHONPATH=src python3 -m bloodfilm.cli dataset audit mll23 --report-output outputs/reports/mll23_audit.json
+
+  @echo "  provision       provision this machine (MODE=minimal|full, default full)"
+
+provision:
+	bash scripts/provision_machine.sh "$(CURDIR)"
 
 docker-build:
 	docker compose build

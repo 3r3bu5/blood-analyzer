@@ -3,19 +3,131 @@
   "datasets": [
     {
       "name": "MLL23",
-      "version": "not_downloaded",
+      "version": "zenodo:14277609",
       "source_url": "https://zenodo.org/records/14277609",
       "downloaded_at": null,
-      "license": "verify_from_zenodo_record_before_use",
-      "purpose": ["classifier_training", "classifier_evaluation"],
+      "license": "cc-by-4.0",
+      "purpose": [
+        "classifier_training",
+        "classifier_evaluation"
+      ],
       "local_path": "data/raw/MLL23",
       "checksum_manifest": "data/manifests/mll23_checksums.csv",
       "label_mapping": "configs/mappings/mll23.yaml",
       "grouping_field": "patient_or_source_group",
-      "files": [],
+      "files": [
+        {
+          "filename": "neutrophil_band.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/neutrophil_band.zip/content",
+          "md5": "c8d94d9bbc4eb2d05ea5ea949680a41f",
+          "extract": true
+        },
+        {
+          "filename": "myelocyte.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/myelocyte.zip/content",
+          "md5": "92e5f6dac522c3deabd55f8be5f634c4",
+          "extract": true
+        },
+        {
+          "filename": "basophil.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/basophil.zip/content",
+          "md5": "7bb731078be264c977fa72230c49c25c",
+          "extract": true
+        },
+        {
+          "filename": "eosinophil.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/eosinophil.zip/content",
+          "md5": "1d8a11afcf90a618c80b41510620f0f7",
+          "extract": true
+        },
+        {
+          "filename": "lymphocyte_large_granular.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/lymphocyte_large_granular.zip/content",
+          "md5": "e4ce87d300fa95b47e0e3d224fe55107",
+          "extract": true
+        },
+        {
+          "filename": "hairy_cell.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/hairy_cell.zip/content",
+          "md5": "0ef69f54b296ae09b42bef4a5e8e74d5",
+          "extract": true
+        },
+        {
+          "filename": "lymphocyte_reactive.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/lymphocyte_reactive.zip/content",
+          "md5": "ef3daecf3e8cba5b2110ea3fbf4e8870",
+          "extract": true
+        },
+        {
+          "filename": "lymphocyte_neoplastic.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/lymphocyte_neoplastic.zip/content",
+          "md5": "c479f033de12ec2ad7e7335b2b2085c2",
+          "extract": true
+        },
+        {
+          "filename": "metamyelocyte.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/metamyelocyte.zip/content",
+          "md5": "92f7f022370754abce0eb2bcdacc196d",
+          "extract": true
+        },
+        {
+          "filename": "monocyte.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/monocyte.zip/content",
+          "md5": "ec8a85d1d06889a00e9edb7f3bdde365",
+          "extract": true
+        },
+        {
+          "filename": "normoblast.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/normoblast.zip/content",
+          "md5": "1ab785e0c9b7529e995551f37dd2dab5",
+          "extract": true
+        },
+        {
+          "filename": "neutrophil_segmented.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/neutrophil_segmented.zip/content",
+          "md5": "0962400d8fe56484d6b4f233b1532af2",
+          "extract": true
+        },
+        {
+          "filename": "plasma_cell.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/plasma_cell.zip/content",
+          "md5": "00ef51b611352ea25e5f6cb9bc538019",
+          "extract": true
+        },
+        {
+          "filename": "smudge_cell.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/smudge_cell.zip/content",
+          "md5": "4642b73dd940cb69f7f0b3991756cba2",
+          "extract": true
+        },
+        {
+          "filename": "promyelocyte_atypical.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/promyelocyte_atypical.zip/content",
+          "md5": "7b1ca8c1fbb13e67ee1f246dd3dc9538",
+          "extract": true
+        },
+        {
+          "filename": "promyelocyte.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/promyelocyte.zip/content",
+          "md5": "b8d985eaed723e8c5f484d3f7ad3d134",
+          "extract": true
+        },
+        {
+          "filename": "lymphocyte.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/lymphocyte.zip/content",
+          "md5": "3dc47820ee9805cfa6a20acc3436e282",
+          "extract": true
+        },
+        {
+          "filename": "myeloblast.zip",
+          "url": "https://zenodo.org/api/records/14277609/files/myeloblast.zip/content",
+          "md5": "8cfc239610093f92d374831549895b04",
+          "extract": true
+        }
+      ],
       "acquisition": {
         "zenodo_api": "https://zenodo.org/api/records/14277609",
-        "note": "No file entries recorded yet. Query the Zenodo API for the official file list and MD5 checksums, then append {filename, url, md5} entries to files before running assets download."
+        "note": "File entries recorded from Zenodo API record 14277609."
       }
     }
   ],

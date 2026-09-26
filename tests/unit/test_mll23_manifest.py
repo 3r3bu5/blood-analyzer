@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from bloodfilm.data.manifest import build_mll23_manifest
 from bloodfilm.data.splits import create_split_manifest
 from bloodfilm.schemas import MLL23_CANONICAL_CLASSES
@@ -42,6 +44,20 @@ def test_build_mll23_manifest_reports_unsupported_files(tmp_path: Path) -> None:
     assert result.valid_rows == []
     assert len(result.invalid_rows) == 1
     assert result.invalid_rows[0].reason == "UNSUPPORTED_IMAGE_FORMAT"
+
+
+def test_build_mll23_manifest_reports_progress(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dataset_root = tmp_path / "mll23"
+    (dataset_root / "Basophil").mkdir(parents=True)
+    write_rgb_png(dataset_root / "Basophil" / "cell.png", 2, 2, [(1, 2, 3)] * 4)
+    mapping_path = tmp_path / "mll23.yaml"
+    _write_mll23_mapping(mapping_path)
+
+    build_mll23_manifest(dataset_root, mapping_path, progress_every=1)
+
+    assert "manifest: scanned 1/1 files" in capsys.readouterr().err
 
 
 def test_split_manifest_assigns_each_valid_row_once(tmp_path: Path) -> None:

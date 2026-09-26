@@ -8,8 +8,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _registry_with_empty_files(tmp_path: Path) -> Path:
     source = (REPO_ROOT / "configs/registry/assets.yaml").read_text(encoding="utf-8")
+    data = json.loads(source)
+    for dataset in data.get("datasets", []):
+        dataset["files"] = []
     registry = tmp_path / "assets.yaml"
-    registry.write_text(source, encoding="utf-8")
+    registry.write_text(json.dumps(data), encoding="utf-8")
     return registry
 
 
