@@ -20,10 +20,27 @@ def _write_config(path: Path, dataset_root: Path, weights: Path) -> None:
     )
 
 
-def test_config_validate_works_without_data(tmp_path: Path, capsys: object) -> None:
+def test_config_validate_works_without_data(tmp_path: Path) -> None:
     exit_code = main(["config", "validate", "--config", str(REPO_ROOT / "configs/base.yaml")])
 
     assert exit_code == 0
+
+
+def test_config_validate_rejects_unknown_head(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        json.dumps({"classifier": {"head": "transformer", "num_classes": 18}}),
+        encoding="utf-8",
+    )
+
+    assert main(["config", "validate", "--config", str(config_path)]) == 2
+
+
+def test_config_validate_rejects_non_positive_classes(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(json.dumps({"classifier": {"num_classes": 0}}), encoding="utf-8")
+
+    assert main(["config", "validate", "--config", str(config_path)]) == 2
 
 
 def test_train_classifier_requires_dataset(

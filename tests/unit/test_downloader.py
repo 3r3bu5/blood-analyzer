@@ -10,6 +10,7 @@ from urllib.request import pathname2url
 
 import pytest
 
+from bloodfilm.data.completion import require_complete_dataset
 from bloodfilm.data.downloader import (
     DownloadFile,
     download_dataset,
@@ -17,7 +18,7 @@ from bloodfilm.data.downloader import (
     verify_downloads,
 )
 from bloodfilm.data.integrity import hash_file
-from bloodfilm.errors import ChecksumMismatchError, DownloadError
+from bloodfilm.errors import ChecksumMismatchError, DatasetNotAvailableError, DownloadError
 
 
 def _file_url(path: Path) -> str:
@@ -209,3 +210,41 @@ def test_download_dataset_end_to_end_through_registry(tmp_path: Path) -> None:
 
     assert second["status"] == "complete"
     assert second["files"][0]["status"] == "skipped_verified"
+
+
+def test_unverified_download_blocks_training_gate(tmp_path: Path) -> None:
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"no-checksum-bytes")
+    registry = tmp_path / "assets.yaml"
+    registry.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "datasets": [
+                    {
+                        "name": "MLL23",
+                        "local_path": "data/raw/MLL23",
+                        "files": [
+                            {"filename": "source.bin", "url": _file_url(source)},
+                        ],
+                    }
+                ],
+                "models": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    dest_root = tmp_path / "raw"
+
+    report = download_dataset("MLL23", registry, dest_root, tmp_path / "dl.json")
+
+    assert report["status"] == "complete"
+    assert report["files"][0]["verified"] is False
+    with pytest.raises(DatasetNotAvailableError):
+        require_complete_dataset(dest_root / "MLL23", dataset="MLL23")
+
+    verify = verify_downloads("MLL23", registry, dest_root, tmp_path / "v.json")
+
+    assert verify["files"][0]["status"] == "present_unverified"
+    with pytest.raises(DatasetNotAvailableError):
+        require_complete_dataset(dest_root / "MLL23", dataset="MLL23")

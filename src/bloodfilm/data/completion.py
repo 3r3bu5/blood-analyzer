@@ -13,6 +13,7 @@ def write_completion_record(
     dataset_dir: Path | str,
     *,
     dataset: str,
+    verified: bool = True,
     expected_classes: int | None = None,
     expected_images: int | None = None,
     file_count: int | None = None,
@@ -21,7 +22,7 @@ def write_completion_record(
     directory.mkdir(parents=True, exist_ok=True)
     record = {
         "dataset": dataset,
-        "verified": True,
+        "verified": verified,
         "expected_classes": expected_classes,
         "expected_images": expected_images,
         "file_count": file_count,

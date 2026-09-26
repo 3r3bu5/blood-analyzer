@@ -35,6 +35,7 @@ def build_mlp_head(
 def build_cosine_head(
     num_classes: int, embedding_dim: int = 768, initial_scale: float = 10.0
 ) -> Any:
+    """Cosine head per TDD 9.3: experimental peer; scale starts positive, learned."""
     torch = require_torch("Classifier heads")
     from torch import nn  # type: ignore[import-not-found]
 

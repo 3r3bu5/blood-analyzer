@@ -7,6 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from bloodfilm.classification.dinobloom import require_dinobloom_b_weights, smoke_dinobloom_b
+from bloodfilm.classification.heads import HEAD_NAMES
 from bloodfilm.config import load_config
 from bloodfilm.data import (
     audit_dataset,
@@ -240,6 +241,11 @@ def _assets_verify(args: argparse.Namespace) -> int:
 
 def _config_validate(args: argparse.Namespace) -> int:
     config = load_config(args.config)
+    head = config.classifier.head or "linear"
+    if head.strip().lower() not in HEAD_NAMES:
+        raise ConfigError(f"Unknown classifier head {head!r}; expected one of {HEAD_NAMES}")
+    if config.classifier.num_classes < 1:
+        raise ConfigError("classifier.num_classes must be positive")
     summary = {
         "config": str(args.config),
         "backbone": config.classifier.backbone,

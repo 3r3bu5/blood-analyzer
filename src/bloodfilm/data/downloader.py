@@ -74,7 +74,10 @@ def download_dataset(
             dest_dir,
         )
         report = {"dataset": dataset.name, **downloaded}
-        write_completion_record(dest_dir, dataset=dataset.name, file_count=len(dataset.files))
+        verified = all(entry.get("verified", False) for entry in downloaded["files"])
+        write_completion_record(
+            dest_dir, dataset=dataset.name, verified=verified, file_count=len(dataset.files)
+        )
     if report_path is not None:
         write_json(report_path, report)
     return report
@@ -99,6 +102,10 @@ def verify_downloads(
             "files": entries,
             "status": finished,
         }
+        if not failed:
+            write_completion_record(
+                dest_dir, dataset=dataset.name, verified=True, file_count=len(dataset.files)
+            )
     if report_path is not None:
         write_json(report_path, report)
     return report

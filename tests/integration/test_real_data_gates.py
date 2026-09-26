@@ -26,5 +26,9 @@ def test_real_mll23_manifest_builds() -> None:
     not (REPO_ROOT / "models" / "backbones" / "dinobloom-b.pth").exists(),
     reason="DinoBloom-B weights are not installed",
 )
-def test_real_dinobloom_smoke_produces_768_vector() -> None:
-    pytest.skip("Backbone wiring belongs to the M2 classifier baseline")
+def test_real_dinobloom_weights_are_not_silently_accepted() -> None:
+    from bloodfilm.classification.dinobloom import require_dinobloom_b_weights
+    from bloodfilm.errors import ModelLoadError
+
+    with pytest.raises(ModelLoadError):
+        require_dinobloom_b_weights(REPO_ROOT / "models" / "backbones" / "dinobloom-b.pth")
