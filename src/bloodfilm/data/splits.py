@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 from pathlib import Path
+from typing import cast
 
 from bloodfilm.schemas import ManifestRow, SplitName, SplitRow, is_ungrouped_group
 from bloodfilm.util import write_csv_rows
@@ -66,6 +68,20 @@ def _grouping_status(splits_by_group: dict[str, set[str]]) -> str:
 
 def write_split_manifest(path: Path | str, rows: list[SplitRow]) -> None:
     write_csv_rows(path, list(SplitRow.__dataclass_fields__), [row.__dict__ for row in rows])
+
+
+def read_split_manifest(path: Path | str) -> list[SplitRow]:
+    with Path(path).open("r", newline="", encoding="utf-8") as handle:
+        return [
+            SplitRow(
+                image_id=row["image_id"],
+                image_path=row["image_path"],
+                canonical_label=row["canonical_label"],
+                patient_or_source_group=row["patient_or_source_group"],
+                split=cast(SplitName, row["split"]),
+            )
+            for row in csv.DictReader(handle)
+        ]
 
 
 def _stable_fraction(value: str) -> float:

@@ -74,3 +74,71 @@ def _check_lengths(predicted: list[int], labels: list[int]) -> None:
 def _check_class_index(value: int, num_classes: int, field: str) -> None:
     if not 0 <= value < num_classes:
         raise ValueError(f"{field} index {value} outside {num_classes} classes")
+
+
+def expected_calibration_error(
+    probabilities: list[list[float]], labels: list[int], bins: int
+) -> float:
+    """Binned expected calibration error over the predicted max probability."""
+    if len(probabilities) != len(labels):
+        raise ValueError(
+            f"probabilities ({len(probabilities)}) and labels ({len(labels)}) must match"
+        )
+    if bins < 1:
+        raise ValueError(f"bins must be positive, got {bins}")
+    if not labels:
+        return 0.0
+    confidences = [max(row) for row in probabilities]
+    predictions = [max(range(len(row)), key=row.__getitem__) for row in probabilities]
+    error = 0.0
+    for low, high in _bin_edges(bins):
+        members = [
+            index
+            for index, confidence in enumerate(confidences)
+            if (low < confidence <= high) or (low == 0.0 and confidence == 0.0)
+        ]
+        if not members:
+            continue
+        accuracy = sum(1 for index in members if predictions[index] == labels[index]) / len(
+            members
+        )
+        confidence = sum(confidences[index] for index in members) / len(members)
+        error += len(members) / len(labels) * abs(accuracy - confidence)
+    return error
+
+
+def _bin_edges(bins: int) -> list[tuple[float, float]]:
+    width = 1.0 / bins
+    return [(index * width, (index + 1) * width) for index in range(bins)]
+
+
+def fit_temperature(logits: Any, labels: Any) -> float:
+    """Fit Guo et al. temperature scaling on a held-out logit set."""
+    from bloodfilm.ml import require_torch
+
+    torch = require_torch("Temperature scaling")
+    log_temperature = torch.zeros((), requires_grad=True)
+    optimizer = torch.optim.LBFGS([log_temperature], lr=0.1, max_iter=50)
+
+    def _nll() -> Any:
+        optimizer.zero_grad()
+        loss = torch.nn.functional.cross_entropy(logits / log_temperature.exp(), labels)
+        loss.backward()
+        return loss
+
+    optimizer.step(_nll)
+    temperature = float(log_temperature.exp().detach())
+    if not temperature > 0.0:
+        raise ValueError(f"Temperature fitting diverged: {temperature}")
+    return temperature
+
+
+def top_k_accuracy(logits: Any, labels: Any, k: int) -> float:
+    """Fraction of samples whose label is among the top-k logits."""
+    if k < 1:
+        raise ValueError(f"k must be positive, got {k}")
+    if len(labels) == 0:
+        return 0.0
+    top = logits.topk(min(k, logits.shape[1]), dim=1).indices
+    hits = sum(1 for row, truth in zip(top.tolist(), labels.tolist()) if int(truth) in row)
+    return hits / len(labels)

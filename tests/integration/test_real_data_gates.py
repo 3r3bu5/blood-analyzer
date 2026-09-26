@@ -34,9 +34,7 @@ def test_require_weights_missing_path_points_to_downloads() -> None:
     not (REPO_ROOT / "models" / "backbones" / "dinobloom-b.pth").exists(),
     reason="DinoBloom-B weights are not installed",
 )
-def test_real_dinobloom_weights_are_not_silently_accepted() -> None:
+def test_real_dinobloom_weights_are_accepted() -> None:
     from bloodfilm.classification.dinobloom import require_dinobloom_b_weights
-    from bloodfilm.errors import ModelLoadError
 
-    with pytest.raises(ModelLoadError):
-        require_dinobloom_b_weights(REPO_ROOT / "models" / "backbones" / "dinobloom-b.pth")
+    require_dinobloom_b_weights(REPO_ROOT / "models" / "backbones" / "dinobloom-b.pth")

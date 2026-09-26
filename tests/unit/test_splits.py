@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from bloodfilm.data.splits import create_leakage_report, create_split_manifest
 from bloodfilm.schemas import ManifestRow
 
@@ -82,3 +84,22 @@ def test_leakage_report_still_assesses_real_groups_in_mixed_manifest() -> None:
 
     assert report["leaking_groups"] == []
     assert report["leakage_free"] is True
+
+
+def test_split_manifest_write_read_roundtrip(tmp_path: Path) -> None:
+    from bloodfilm.data.splits import read_split_manifest, write_split_manifest
+    from bloodfilm.schemas import SplitRow
+
+    rows = [
+        SplitRow(
+            image_id="id-1",
+            image_path="class/cell_1.png",
+            canonical_label="basophil",
+            patient_or_source_group="group-a",
+            split="train",
+        )
+    ]
+    path = tmp_path / "splits.csv"
+    write_split_manifest(path, rows)
+
+    assert read_split_manifest(path) == rows

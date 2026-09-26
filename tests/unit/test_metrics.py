@@ -32,3 +32,56 @@ def test_classification_report_matches_worked_example() -> None:
 def test_metrics_reject_mismatched_lengths() -> None:
     with pytest.raises(ValueError):
         classification_report([0, 1], [0], ["a", "b"])
+
+
+def test_expected_calibration_error_is_zero_for_matched_confidence() -> None:
+    from bloodfilm.evaluation.classifier import expected_calibration_error
+
+    probabilities = [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]
+    labels = [0, 1, 0, 1]
+
+    assert expected_calibration_error(probabilities, labels, bins=1) == 0.0
+
+
+def test_expected_calibration_error_is_one_for_fully_wrong_confident_predictions() -> None:
+    from bloodfilm.evaluation.classifier import expected_calibration_error
+
+    probabilities = [[1.0, 0.0], [1.0, 0.0]]
+    labels = [1, 1]
+
+    assert expected_calibration_error(probabilities, labels, bins=1) == 1.0
+
+
+def test_expected_calibration_error_rejects_mismatched_lengths() -> None:
+    from bloodfilm.evaluation.classifier import expected_calibration_error
+
+    with pytest.raises(ValueError):
+        expected_calibration_error([[1.0, 0.0]], [], bins=1)
+
+
+def test_fit_temperature_reduces_nll_on_fit_set() -> None:
+    torch = pytest.importorskip("torch")
+    from bloodfilm.evaluation.classifier import fit_temperature
+
+    generator = torch.Generator().manual_seed(0)
+    logits = torch.randn(40, 3, generator=generator) * 3.0
+    labels = torch.tensor([0, 1, 2] * 13 + [0])
+
+    temperature = fit_temperature(logits, labels)
+
+    assert temperature > 0.0
+    assert torch.isfinite(torch.tensor(temperature))
+    before = torch.nn.functional.cross_entropy(logits, labels).item()
+    after = torch.nn.functional.cross_entropy(logits / temperature, labels).item()
+    assert after <= before + 1e-6
+
+
+def test_top_k_accuracy_counts_top2_hits() -> None:
+    torch = pytest.importorskip("torch")
+    from bloodfilm.evaluation.classifier import top_k_accuracy
+
+    logits = torch.tensor([[2.0, 1.0, 0.0], [0.0, 0.1, 1.0]])
+    labels = torch.tensor([1, 2])
+
+    assert top_k_accuracy(logits, labels, k=1) == 0.5
+    assert top_k_accuracy(logits, labels, k=2) == 1.0

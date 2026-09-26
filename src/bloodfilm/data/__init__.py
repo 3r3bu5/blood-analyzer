@@ -31,6 +31,7 @@ from bloodfilm.data.registry import (
 from bloodfilm.data.splits import (
     create_leakage_report,
     create_split_manifest,
+    read_split_manifest,
     write_split_manifest,
 )
 
@@ -54,6 +55,7 @@ __all__ = [
     "list_assets",
     "manifest_audit_report",
     "read_manifest",
+    "read_split_manifest",
     "require_complete_dataset",
     "resolve_dataset_paths",
     "run_build_manifest",

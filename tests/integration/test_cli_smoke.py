@@ -8,7 +8,7 @@ def test_smoke_command_writes_missing_asset_and_sample_gap_report(tmp_path: Path
     config_path = tmp_path / "config.yaml"
     output_path = tmp_path / "smoke.json"
     config_path.write_text(
-        '{"classifier":{"weights":"models/backbones/dinobloom-b.pth"},'
+        '{"classifier":{"weights":' + json.dumps(str(tmp_path / "absent.pth")) + "},"
         '"quality":{"min_width":1,"min_height":1}}',
         encoding="utf-8",
     )
