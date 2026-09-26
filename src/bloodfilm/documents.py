@@ -7,7 +7,7 @@ from typing import Any
 from bloodfilm.errors import ConfigError
 
 
-def load_document(path: Path | str) -> dict[str, Any]:
+def load_config_document(path: Path | str) -> dict[str, Any]:
     document_path = Path(path)
     try:
         text = document_path.read_text(encoding="utf-8")

@@ -23,6 +23,8 @@ def test_build_mll23_manifest_maps_valid_images_and_reports_invalid_items(
 
     assert [row.canonical_label for row in result.valid_rows] == ["basophil"]
     assert result.valid_rows[0].width == 2
+    assert result.valid_rows[0].image_id == result.valid_rows[0].sha256
+    assert len(result.valid_rows[0].image_id) == 64
     assert result.class_distribution["basophil"] == 1
     assert result.class_distribution["normoblast"] == 0
     assert len(result.invalid_rows) == 1

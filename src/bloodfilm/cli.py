@@ -88,7 +88,7 @@ def _smoke(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     report: dict[str, object] = {
         "config": str(args.config),
-        "dinobloom_b": asdict(smoke_dinobloom_b(config.classifier.weights)),
+        "dinobloom_b": _dinobloom_smoke_report(config.classifier.weights),
         "sample_image": {
             "status": "blocked",
             "blocker": "No image supplied. Provide --image or place microscope fields under data/microscope_samples/raw_fields.",
@@ -105,6 +105,19 @@ def _smoke(args: argparse.Namespace) -> int:
     write_json(args.output, report)
     print(args.output)
     return 0
+
+
+def _dinobloom_smoke_report(weight_path: Path) -> dict[str, object]:
+    try:
+        return dict(asdict(smoke_dinobloom_b(weight_path)))
+    except BloodFilmError as exc:
+        return {
+            "variant": "DinoBloom-B",
+            "weight_path": str(weight_path),
+            "status": "error",
+            "error_code": exc.code,
+            "blocker": str(exc),
+        }
 
 
 def _build_manifest(args: argparse.Namespace) -> int:

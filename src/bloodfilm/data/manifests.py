@@ -13,8 +13,13 @@ from bloodfilm.errors import (
     UnsupportedImageFormatError,
 )
 from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, load_image
-from bloodfilm.schemas import InvalidManifestRow, MLL23_CANONICAL_CLASSES, ManifestRow
-from bloodfilm.util import sha256_file
+from bloodfilm.schemas import (
+    UNGROUPED_GROUP_PREFIX,
+    InvalidManifestRow,
+    MLL23_CANONICAL_CLASSES,
+    ManifestRow,
+)
+from bloodfilm.util import sha256_file, write_csv_rows
 
 
 @dataclass(frozen=True)
@@ -70,10 +75,9 @@ def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> 
             continue
         checksum = sha256_file(image_path)
         relative_path = image_path.relative_to(root).as_posix()
-        image_id = checksum[:16]
         valid.append(
             ManifestRow(
-                image_id=image_id,
+                image_id=checksum,
                 image_path=relative_path,
                 source_folder=source_folder,
                 canonical_label=canonical,
@@ -81,7 +85,7 @@ def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> 
                 width=image.width,
                 height=image.height,
                 mode=image.mode,
-                patient_or_source_group=f"ungrouped:{image_id}",
+                patient_or_source_group=f"{UNGROUPED_GROUP_PREFIX}{checksum}",
             )
         )
     counts = Counter(row.canonical_label for row in valid)
@@ -92,35 +96,24 @@ def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> 
 
 
 def write_manifest(path: Path | str, rows: list[ManifestRow]) -> None:
-    output = Path(path)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(ManifestRow.__dataclass_fields__))
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row.__dict__)
+    write_csv_rows(path, list(ManifestRow.__dataclass_fields__), [row.__dict__ for row in rows])
 
 
 def write_invalid_manifest(path: Path | str, rows: list[InvalidManifestRow]) -> None:
-    output = Path(path)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(InvalidManifestRow.__dataclass_fields__))
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row.__dict__)
+    write_csv_rows(
+        path, list(InvalidManifestRow.__dataclass_fields__), [row.__dict__ for row in rows]
+    )
 
 
 def write_checksum_manifest(path: Path | str, rows: list[ManifestRow]) -> None:
-    output = Path(path)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["image_id", "image_path", "sha256"])
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(
-                {"image_id": row.image_id, "image_path": row.image_path, "sha256": row.sha256}
-            )
+    write_csv_rows(
+        path,
+        ["image_id", "image_path", "sha256"],
+        [
+            {"image_id": row.image_id, "image_path": row.image_path, "sha256": row.sha256}
+            for row in rows
+        ],
+    )
 
 
 def read_manifest(path: Path | str) -> list[ManifestRow]:

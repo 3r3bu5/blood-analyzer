@@ -14,8 +14,15 @@ Implemented now:
 Not implemented yet:
 
 - classifier training or detector training
-- real DinoBloom-B model loading without explicit local weights and ML dependencies
+- real DinoBloom-B inference without explicit local weights, the vendored backbone architecture, and ML dependencies
 - clinical validation or performance claims
+
+Future placeholders not validated in M0/M1 (kept for later milestones, not wired to any command):
+
+- `configs/classifier_mll23.yaml` (M2 classifier baseline settings)
+- `configs/detector_txl_pbc.yaml` (M3 detector settings)
+- `configs/inference.yaml` (M4 analyzer settings)
+- `configs/mappings/wbcbench.yaml`, `matek19.yaml`, `bodzas.yaml` (M7 external-dataset mappings)
 
 ## Commands
 

@@ -1,6 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
+
+SplitName = Literal["train", "validation", "test"]
+QualityStatus = Literal["acceptable", "review_quality", "unusable"]
+
+UNGROUPED_GROUP_PREFIX = "ungrouped:"
+
+
+def is_ungrouped_group(group: str) -> bool:
+    return group.startswith(UNGROUPED_GROUP_PREFIX)
+
 
 MLL23_CANONICAL_CLASSES = [
     "basophil",
@@ -51,4 +62,4 @@ class SplitRow:
     image_path: str
     canonical_label: str
     patient_or_source_group: str
-    split: str
+    split: SplitName

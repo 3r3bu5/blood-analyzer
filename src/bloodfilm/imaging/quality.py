@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from bloodfilm.imaging.io import ImageData
+from bloodfilm.schemas import QualityStatus
+
 
 @dataclass(frozen=True)
 class QualityConfig:
@@ -25,15 +28,15 @@ class ImageQualityResult:
     mean_brightness: float
     dark_fraction: float
     bright_fraction: float
-    status: str
+    status: QualityStatus
     reasons: list[str]
     thresholds: dict[str, float | int | None]
 
 
-def assess_quality(image: object, config: QualityConfig) -> ImageQualityResult:
-    width = int(getattr(image, "width"))
-    height = int(getattr(image, "height"))
-    pixels = bytes(getattr(image, "pixels"))
+def assess_quality(image: ImageData, config: QualityConfig) -> ImageQualityResult:
+    width = image.width
+    height = image.height
+    pixels = image.pixels
     gray = _rgb_to_gray(pixels)
     focus_score = _laplacian_variance(gray, width, height)
     mean_brightness = sum(gray) / len(gray) if gray else 0.0
@@ -57,6 +60,7 @@ def assess_quality(image: object, config: QualityConfig) -> ImageQualityResult:
     if config.max_bright_fraction is not None and bright_fraction >= config.max_bright_fraction:
         review.append("bright_fraction_at_limit")
 
+    status: QualityStatus
     if unusable:
         status = "unusable"
         reasons = unusable + review

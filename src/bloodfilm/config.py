@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from bloodfilm.documents import load_document
+from bloodfilm.documents import load_config_document
 from bloodfilm.errors import ConfigError
 from bloodfilm.imaging.quality import QualityConfig
 
@@ -68,7 +68,7 @@ class AppConfig:
 
 
 def load_config(path: Path | str) -> AppConfig:
-    raw = load_document(path)
+    raw = load_config_document(path)
     _reject_unknown_sections(raw)
     return AppConfig(
         project=_project_config(raw.get("project", {})),
@@ -81,7 +81,7 @@ def load_config(path: Path | str) -> AppConfig:
     )
 
 
-def _object(value: object, section: str) -> dict[str, Any]:
+def _coerce_object(value: object, section: str) -> dict[str, Any]:
     if value is None:
         return {}
     if not isinstance(value, dict):
@@ -90,7 +90,7 @@ def _object(value: object, section: str) -> dict[str, Any]:
 
 
 def _project_config(raw: object) -> ProjectConfig:
-    data = _object(raw, "project")
+    data = _coerce_object(raw, "project")
     return ProjectConfig(
         seed=int(data.get("seed", 42)),
         device=str(data.get("device", "auto")),
@@ -99,7 +99,7 @@ def _project_config(raw: object) -> ProjectConfig:
 
 
 def _quality_config(raw: object) -> QualityConfig:
-    data = _object(raw, "quality")
+    data = _coerce_object(raw, "quality")
     return QualityConfig(
         min_width=int(data.get("min_width", 512)),
         min_height=int(data.get("min_height", 512)),
@@ -113,20 +113,20 @@ def _quality_config(raw: object) -> QualityConfig:
 
 
 def _imaging_config(raw: object) -> ImagingConfig:
-    data = _object(raw, "imaging")
+    data = _coerce_object(raw, "imaging")
     padding = float(data.get("crop_padding_ratio", 0.10))
     if padding < 0:
         raise ConfigError("imaging.crop_padding_ratio must be non-negative")
     return ImagingConfig(
         crop_padding_ratio=padding,
         color_normalization=str(data.get("color_normalization", "none")),
-        save_crops=_bool(data.get("save_crops", True), "imaging.save_crops"),
-        save_annotated=_bool(data.get("save_annotated", True), "imaging.save_annotated"),
+        save_crops=_coerce_bool(data.get("save_crops", True), "imaging.save_crops"),
+        save_annotated=_coerce_bool(data.get("save_annotated", True), "imaging.save_annotated"),
     )
 
 
 def _classifier_config(raw: object) -> ClassifierConfig:
-    data = _object(raw, "classifier")
+    data = _coerce_object(raw, "classifier")
     return ClassifierConfig(
         backbone=str(data.get("backbone", "dinobloom_b")),
         weights=Path(str(data.get("weights", "models/backbones/dinobloom-b.pth"))),
@@ -139,7 +139,7 @@ def _classifier_config(raw: object) -> ClassifierConfig:
 
 
 def _dataset_config(raw: object) -> DatasetConfig:
-    data = _object(raw, "dataset")
+    data = _coerce_object(raw, "dataset")
     return DatasetConfig(
         mll23_root=Path(str(data.get("mll23_root", "data/raw/MLL23"))),
         manifest_path=Path(str(data.get("manifest_path", "data/manifests/mll23_manifest.csv"))),
@@ -150,12 +150,12 @@ def _dataset_config(raw: object) -> DatasetConfig:
 
 
 def _registry_config(raw: object) -> RegistryConfig:
-    data = _object(raw, "registry")
+    data = _coerce_object(raw, "registry")
     return RegistryConfig(assets=Path(str(data.get("assets", "configs/registry/assets.yaml"))))
 
 
 def _detector_config(raw: object) -> DetectorConfig:
-    data = _object(raw, "detector")
+    data = _coerce_object(raw, "detector")
     return DetectorConfig(
         implementation=_optional_str(data.get("implementation")),
         weights=_optional_path(data.get("weights")),
@@ -172,27 +172,27 @@ def _reject_unknown_sections(raw: dict[str, Any]) -> None:
         raise ConfigError(f"Unknown config sections: {unknown}")
 
 
-def _optional_float(value: object) -> float | None:
+def _optional_float(value: Any) -> float | None:
     return None if value is None else float(value)
 
 
-def _optional_int(value: object) -> int | None:
+def _optional_int(value: Any) -> int | None:
     return None if value is None else int(value)
 
 
-def _optional_str(value: object) -> str | None:
+def _optional_str(value: Any) -> str | None:
     return None if value is None else str(value)
 
 
-def _optional_bool(value: object, field: str) -> bool | None:
-    return None if value is None else _bool(value, field)
+def _optional_bool(value: Any, field: str) -> bool | None:
+    return None if value is None else _coerce_bool(value, field)
 
 
-def _optional_path(value: object) -> Path | None:
+def _optional_path(value: Any) -> Path | None:
     return None if value is None else Path(str(value))
 
 
-def _bool(value: object, field: str) -> bool:
+def _coerce_bool(value: object, field: str) -> bool:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from bloodfilm.documents import load_document
+from bloodfilm.documents import load_config_document
 from bloodfilm.errors import MappingError
 
 
@@ -18,7 +18,7 @@ class LabelMapping:
 
 
 def load_label_mapping(path: Path | str) -> LabelMapping:
-    raw = load_document(path)
+    raw = load_config_document(path)
     canonical_raw = raw.get("canonical_classes", [])
     mappings_raw = raw.get("mappings", {})
     if not isinstance(canonical_raw, list) or not all(
