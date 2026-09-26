@@ -136,11 +136,13 @@ def _smoke_through_backbone(
     )
 
 
-def load_dinobloom_b_backbone(weight_path: Path | str) -> Any:
+def load_dinobloom_b_backbone(weight_path: Path | str, device: str = "cpu") -> Any:
     """Load the DinoBloom-B ViT-B/14 backbone in evaluation mode."""
     path = Path(weight_path)
     if not path.exists():
         raise ModelLoadError(f"DinoBloom-B weights not found: {path}")
+    if device not in ("cpu", "cuda"):
+        raise ModelLoadError(f"Unsupported device {device!r}; expected 'cpu' or 'cuda'")
     try:
         import timm
     except ImportError as exc:
@@ -148,6 +150,8 @@ def load_dinobloom_b_backbone(weight_path: Path | str) -> Any:
             "Loading DinoBloom-B requires timm; install the ml extras first"
         ) from exc
     torch = _require_torch()
+    if device == "cuda" and not torch.cuda.is_available():
+        raise ModelLoadError("CUDA device requested but torch reports no CUDA device")
     try:
         model = timm.create_model(
             TIMM_MODEL_ID, pretrained=False, num_classes=0, img_size=BACKBONE_IMAGE_SIZE
@@ -162,7 +166,7 @@ def load_dinobloom_b_backbone(weight_path: Path | str) -> Any:
     if surplus:
         raise ModelLoadError(f"DinoBloom-B weights have unexpected keys: {sorted(surplus)}")
     model.eval()
-    return model
+    return model.to(device)
 
 
 def preprocess_crop(image_path: Path | str) -> Any:

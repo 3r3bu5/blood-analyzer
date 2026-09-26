@@ -162,6 +162,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     embeddings_extract.add_argument("--limit", type=int, default=None)
     embeddings_extract.add_argument(
+        "--device", type=str, default="cpu", choices=["cpu", "cuda", "auto"]
+    )
+    embeddings_extract.add_argument(
         "--output", type=Path, default=Path("data/embeddings/mll23_embeddings.pt")
     )
     embeddings_extract.add_argument(
@@ -415,7 +418,7 @@ def _embeddings_extract(args: argparse.Namespace) -> int:
     require_complete_dataset(config.dataset.mll23_root, dataset="mll23")
     require_dinobloom_b_weights(config.classifier.weights)
     rows = read_split_manifest(args.splits)
-    backbone = load_dinobloom_b_backbone(config.classifier.weights)
+    backbone = load_dinobloom_b_backbone(config.classifier.weights, device=_resolve_device(args))
     cache = build_embedding_cache(
         rows,
         dataset_root=config.dataset.mll23_root,
@@ -423,6 +426,7 @@ def _embeddings_extract(args: argparse.Namespace) -> int:
         preprocess=preprocess_crop,
         weight_sha256=sha256_file(config.classifier.weights),
         limit=args.limit,
+        device=_resolve_device(args),
     )
     save_embedding_cache(cache, args.output)
     write_json(
@@ -436,6 +440,15 @@ def _embeddings_extract(args: argparse.Namespace) -> int:
     )
     print(args.report_output)
     return 0
+
+
+def _resolve_device(args: argparse.Namespace) -> str:
+    if args.device == "auto":
+        from bloodfilm.ml import require_torch
+
+        torch = require_torch("Embedding extraction")
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    return str(args.device)
 
 
 def _split(args: argparse.Namespace) -> int:

@@ -40,6 +40,14 @@ def test_load_backbone_rejects_missing_file(tmp_path: Path) -> None:
         load_dinobloom_b_backbone(tmp_path / "absent.pth")
 
 
+def test_load_backbone_rejects_unsupported_device(tmp_path: Path) -> None:
+    weights = tmp_path / "dinobloom-b.pth"
+    weights.write_bytes(b"fake-checkpoint")
+
+    with pytest.raises(ModelLoadError, match="device"):
+        load_dinobloom_b_backbone(weights, device="tpu")
+
+
 def test_load_backbone_requires_timm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     weights = tmp_path / "dinobloom-b.pth"
     weights.write_bytes(b"fake-checkpoint")

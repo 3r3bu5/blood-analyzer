@@ -139,3 +139,40 @@ def test_manifest_row_converts_to_cache_input() -> None:
         patient_or_source_group="ungrouped:abc",
     )
     assert MLL23_CANONICAL_CLASSES.index(row.canonical_label) == 0
+
+
+def test_build_cache_rejects_unsupported_device(tmp_path: Path) -> None:
+    from bloodfilm.errors import ConfigError
+
+    with pytest.raises(ConfigError, match="device"):
+        build_embedding_cache(
+            [],
+            dataset_root=tmp_path,
+            backbone=_backbone,
+            preprocess=_preprocess,
+            weight_sha256="abc123",
+            device="tpu",
+        )
+
+
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="needs a CUDA device"
+)
+def test_build_cache_extracts_on_cuda(tmp_path: Path) -> None:
+    def cuda_backbone(batch: object) -> object:
+        assert isinstance(batch, torch.Tensor) and batch.is_cuda
+        return torch.full((1, 768), 1.0, device="cuda")
+
+    rows = [_split_row("a", "basophil")]
+    cache = build_embedding_cache(
+        rows,
+        dataset_root=tmp_path,
+        backbone=cuda_backbone,
+        preprocess=_preprocess,
+        weight_sha256="abc123",
+        device="cuda",
+    )
+
+    assert cache.entries[0].status == "ok"
+    assert not cache.embeddings.is_cuda
+    assert cache.embeddings.shape == (1, 768)

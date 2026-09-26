@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from bloodfilm.classification.dinobloom import PREPROCESSING
-from bloodfilm.errors import InputNotFoundError
+from bloodfilm.errors import ConfigError, InputNotFoundError
 from bloodfilm.ml import require_torch
 from bloodfilm.schemas import MLL23_CANONICAL_CLASSES, SplitName, SplitRow
 
@@ -49,8 +49,13 @@ def build_embedding_cache(
     weight_sha256: str,
     limit: int | None = None,
     progress_every: int = 5000,
+    device: str = "cpu",
 ) -> EmbeddingCache:
     torch = require_torch("Embedding extraction")
+    if device not in ("cpu", "cuda"):
+        raise ConfigError(f"Unsupported device {device!r}; expected 'cpu' or 'cuda'")
+    if device == "cuda" and not torch.cuda.is_available():
+        raise ConfigError("CUDA device requested but torch reports no CUDA device")
     root = Path(dataset_root)
     if not root.exists():
         raise InputNotFoundError(f"Dataset root not found: {root}")
@@ -60,12 +65,13 @@ def build_embedding_cache(
     for scanned, row in enumerate(selected, start=1):
         if scanned % progress_every == 0:
             print(f"embeddings: extracted {scanned}/{len(selected)} crops", file=sys.stderr)
-        entries.append(_extract_row(row, root, backbone, preprocess, tensors))
+        entries.append(_extract_row(row, root, backbone, preprocess, tensors, device))
     embeddings = torch.stack(tensors) if tensors else torch.empty((0, 768))
     ok_count = sum(1 for entry in entries if entry.status == "ok")
     metadata: dict[str, Any] = {
         "weight_sha256": weight_sha256,
         "preprocessing_sha256": preprocessing_checksum(),
+        "device": device,
         "row_count": len(entries),
         "ok_count": ok_count,
         "skipped_count": len(entries) - ok_count,
@@ -79,6 +85,7 @@ def _extract_row(
     backbone: Callable[[Any], Any],
     preprocess: Callable[[Path], Any],
     tensors: list[Any],
+    device: str,
 ) -> CacheEntry:
     try:
         label_index = MLL23_CANONICAL_CLASSES.index(row.canonical_label)
@@ -97,6 +104,8 @@ def _extract_row(
         # or memory grows with every crop until the OOM killer intervenes.
         with torch.no_grad():
             batch = preprocess(root / row.image_path)
+            if device != "cpu":
+                batch = batch.to(device)
             embedding = backbone(batch)
         shape = [int(dim) for dim in embedding.shape]
     except Exception as exc:  # noqa: BLE001 - one bad crop must not abort the cache run
@@ -117,7 +126,7 @@ def _extract_row(
             status="skipped",
             reason=f"unexpected embedding shape: {shape}",
         )
-    tensors.append(embedding[0])
+    tensors.append(embedding[0].cpu())
     return CacheEntry(
         image_id=row.image_id,
         image_path=row.image_path,
