@@ -15,7 +15,7 @@ def test_completion_round_trip_marks_dataset_verified(tmp_path: Path) -> None:
     dataset_dir.mkdir()
 
     record_path = write_completion_record(
-        dataset_dir, dataset="mll23", expected_classes=18, file_count=3
+        dataset_dir, dataset="mll23", verified=True, expected_classes=18, file_count=3
     )
 
     assert record_path.name == ".complete.json"

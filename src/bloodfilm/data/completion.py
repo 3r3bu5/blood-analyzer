@@ -13,7 +13,7 @@ def write_completion_record(
     dataset_dir: Path | str,
     *,
     dataset: str,
-    verified: bool = True,
+    verified: bool = False,
     expected_classes: int | None = None,
     expected_images: int | None = None,
     file_count: int | None = None,

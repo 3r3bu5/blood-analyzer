@@ -37,13 +37,13 @@ def build_cosine_head(
 ) -> Any:
     """Cosine head per TDD 9.3: experimental peer; scale starts positive, learned."""
     torch = require_torch("Classifier heads")
-    from torch import nn  # type: ignore[import-not-found]
+    BaseModule: Any = torch.nn.Module
 
-    class _CosineHead(nn.Module):  # type: ignore[misc]
+    class _CosineHead(BaseModule):  # type: ignore[misc]
         def __init__(self) -> None:
             super().__init__()
-            self.class_weights = nn.Parameter(torch.randn(num_classes, embedding_dim))
-            self.log_scale = nn.Parameter(torch.tensor(float(initial_scale)).log())
+            self.class_weights = torch.nn.Parameter(torch.randn(num_classes, embedding_dim))
+            self.log_scale = torch.nn.Parameter(torch.tensor(float(initial_scale)).log())
 
         def forward(self, embeddings: Any) -> Any:
             normalized_inputs = torch.nn.functional.normalize(embeddings, dim=1)

@@ -28,3 +28,10 @@ def test_linear_head_fits_separable_embeddings() -> None:
 
     assert history["loss"][-1] < history["loss"][0]
     assert head_accuracy(model, embeddings, labels) == pytest.approx(1.0)
+
+
+def test_head_accuracy_rejects_empty_labels() -> None:
+    model = build_head("linear", num_classes=3)
+
+    with pytest.raises(ValueError):
+        head_accuracy(model, torch.zeros(0, 768), [])

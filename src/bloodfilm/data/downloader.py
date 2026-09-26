@@ -102,10 +102,12 @@ def verify_downloads(
             "files": entries,
             "status": finished,
         }
-        if not failed:
-            write_completion_record(
-                dest_dir, dataset=dataset.name, verified=True, file_count=len(dataset.files)
-            )
+        write_completion_record(
+            dest_dir,
+            dataset=dataset.name,
+            verified=not failed,
+            file_count=len(dataset.files),
+        )
     if report_path is not None:
         write_json(report_path, report)
     return report

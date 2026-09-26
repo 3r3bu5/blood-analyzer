@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from bloodfilm.errors import MissingAssetError, ModelLoadError
+from bloodfilm.ml import require_torch
 from bloodfilm.util import sha256_file
 
 EXPECTED_VARIANT = "DinoBloom-B"
@@ -85,11 +86,7 @@ def _smoke_through_loader(
 
 
 def _require_torch() -> Any:
-    try:
-        import torch  # type: ignore[import-not-found]
-    except ModuleNotFoundError as exc:
-        raise ModelLoadError("PyTorch is required to load DinoBloom-B weights") from exc
-    return torch
+    return require_torch("DinoBloom-B loading", ModelLoadError)
 
 
 def _validate_checkpoint_readable(path: Path) -> None:

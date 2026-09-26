@@ -248,3 +248,46 @@ def test_unverified_download_blocks_training_gate(tmp_path: Path) -> None:
     assert verify["files"][0]["status"] == "present_unverified"
     with pytest.raises(DatasetNotAvailableError):
         require_complete_dataset(dest_root / "MLL23", dataset="MLL23")
+
+
+def test_verify_invalidates_stale_completion_record(tmp_path: Path) -> None:
+    from bloodfilm.data.completion import dataset_completion_status
+
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"v1-bytes")
+    registry = tmp_path / "assets.yaml"
+    registry.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "datasets": [
+                    {
+                        "name": "MLL23",
+                        "local_path": "data/raw/MLL23",
+                        "files": [
+                            {
+                                "filename": "source.bin",
+                                "url": _file_url(source),
+                                "md5": hash_file(source, "md5"),
+                            },
+                        ],
+                    }
+                ],
+                "models": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    dest_root = tmp_path / "raw"
+
+    assert download_dataset("MLL23", registry, dest_root)["status"] == "complete"
+    assert dataset_completion_status(dest_root / "MLL23")["verified"] is True
+
+    (dest_root / "MLL23" / "source.bin").write_bytes(b"tampered-bytes")
+    verify = verify_downloads("MLL23", registry, dest_root, tmp_path / "v.json")
+
+    assert verify["status"] == "partial"
+    assert verify["files"][0]["status"] == "checksum_mismatch"
+    assert dataset_completion_status(dest_root / "MLL23")["verified"] is False
+    with pytest.raises(DatasetNotAvailableError):
+        require_complete_dataset(dest_root / "MLL23", dataset="MLL23")

@@ -33,7 +33,7 @@ def compute_class_weights(labels: list[int], num_classes: int) -> Any:
 
 
 def _loss_function(torch: Any, config: TrainConfig, labels: list[int], num_classes: int) -> Any:
-    from torch import nn  # type: ignore[import-not-found]
+    nn = torch.nn
 
     if config.imbalance == "weighted_ce":
         return nn.CrossEntropyLoss(weight=compute_class_weights(labels, num_classes))
@@ -70,6 +70,8 @@ def train_head(
 
 
 def head_accuracy(model: Any, embeddings: Any, labels: list[int]) -> float:
+    if not labels:
+        raise ValueError("Cannot score an empty label list")
     torch = require_torch("Head training")
     model.eval()
     with torch.inference_mode():

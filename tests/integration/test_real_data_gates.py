@@ -21,6 +21,14 @@ def test_real_mll23_manifest_builds() -> None:
     assert len(result.valid_rows) == sum(result.class_distribution.values())
 
 
+def test_require_weights_missing_path_points_to_downloads() -> None:
+    from bloodfilm.classification.dinobloom import require_dinobloom_b_weights
+    from bloodfilm.errors import MissingAssetError
+
+    with pytest.raises(MissingAssetError):
+        require_dinobloom_b_weights(REPO_ROOT / "models" / "backbones" / "definitely-absent.pth")
+
+
 @pytest.mark.requires_model
 @pytest.mark.skipif(
     not (REPO_ROOT / "models" / "backbones" / "dinobloom-b.pth").exists(),
