@@ -1,4 +1,4 @@
-.PHONY: help test lint typecheck environment smoke assets-list dataset-audit
+.PHONY: help test lint typecheck environment smoke assets-list dataset-audit docker-build docker-test docker-config
 
 help:
 	@echo "Targets:"
@@ -9,6 +9,9 @@ help:
 	@echo "  smoke           run M0 smoke checks"
 	@echo "  assets-list     list registered datasets and models"
 	@echo "  dataset-audit   audit the registered MLL23 dataset (needs data/raw/MLL23)"
+	@echo "  docker-build    build app and test images (INSTALL_ML=1 for ML extras)"
+	@echo "  docker-test     run the full pytest suite in a container"
+	@echo "  docker-config   validate the compose file"
 
 test:
 	python3 -m pytest
@@ -30,3 +33,12 @@ assets-list:
 
 dataset-audit:
 	PYTHONPATH=src python3 -m bloodfilm.cli dataset audit mll23 --report-output outputs/reports/mll23_audit.json
+
+docker-build:
+	docker compose build
+
+docker-test:
+	docker compose run --rm test
+
+docker-config:
+	docker compose config --quiet

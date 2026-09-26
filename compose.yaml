@@ -1,0 +1,50 @@
+# Local runtime for the WBC Blood Film Analyzer POC.
+# Datasets, weights, and outputs live on the host and are mounted in;
+# no models or data are baked into the image.
+x-build: &app-build
+  context: .
+  args:
+    INSTALL_ML: ${INSTALL_ML:-0}
+
+services:
+  app:
+    build:
+      <<: *app-build
+      target: runtime
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./outputs:/app/outputs
+    # Override per run, e.g.:
+    #   docker compose run --rm app smoke --config configs/base.yaml
+    command: ["--help"]
+
+  test:
+    build:
+      <<: *app-build
+      target: test
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+    # Override per run, e.g.:
+    #   docker compose run --rm test tests/unit -q
+
+  dev:
+    build:
+      <<: *app-build
+      target: runtime
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./src:/app/src
+      - ./tests:/app/tests:ro
+      - ./scripts:/app/scripts:ro
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./outputs:/app/outputs
+    environment:
+      # Resolve the console script against the live-mounted tree, not site-packages.
+      PYTHONPATH: /app/src
+    stdin_open: true
+    tty: true
+    command: ["--help"]

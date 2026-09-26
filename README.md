@@ -41,6 +41,24 @@ The `data` command group remains as an alias of `dataset`. The `scripts/` wrappe
 (`audit_dataset.py`, `build_manifest.py`, `download_assets.py`) only parse arguments
 and call the `bloodfilm.data` package.
 
+## Docker
+
+```bash
+make docker-config   # validate compose.yaml
+make docker-build    # build app and test images
+make docker-test     # run the full suite in a container
+docker compose run --rm app smoke --config configs/base.yaml
+```
+
+`configs/`, `data/`, `models/`, and `outputs/` are mounted from the host. The image
+bakes in `src/`, `configs/`, `scripts/`, packaging metadata, and (test stage only)
+`tests/` — never datasets or weights. The `test` service bind-mounts the working
+tree over the baked copy, and `dev` sets `PYTHONPATH=/app/src`, so both always
+exercise live code rather than the install snapshot. Build with
+`INSTALL_ML=1` (e.g. `INSTALL_ML=1 make docker-build`) to include the heavy ML
+extras. GPU access is intentionally not configured yet; add a `deploy.resources`
+reservation when classifier/detector training needs it.
+
 `configs/*.yaml` are JSON-compatible YAML so the scaffold runs before optional ML/YAML dependencies are installed. Install the `ml` extra before model training milestones.
 
 ## MLL23 Acquisition Blocker
