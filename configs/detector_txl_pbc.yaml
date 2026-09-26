@@ -1,0 +1,9 @@
+{
+  "detector": {
+    "implementation": "ultralytics_yolo",
+    "weights": "models/detector/wbc_detector.pt",
+    "confidence_threshold": 0.25,
+    "iou_threshold": 0.5,
+    "image_size": 640
+  }
+}

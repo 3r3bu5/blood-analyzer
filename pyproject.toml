@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blood-film-analyzer"
+version = "0.1.0"
+description = "Research POC scaffolding for WBC blood film analysis"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+ml = [
+  "torch",
+  "torchvision",
+  "opencv-python-headless",
+  "Pillow",
+  "numpy",
+  "pandas",
+  "scikit-learn",
+  "scipy",
+  "matplotlib",
+  "seaborn",
+  "timm",
+  "ultralytics",
+  "albumentations",
+  "pydantic",
+  "PyYAML",
+  "typer",
+  "rich",
+  "tqdm",
+]
+dev = ["pytest", "mypy", "ruff"]
+
+[project.scripts]
+bloodfilm = "bloodfilm.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

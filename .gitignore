@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+data/raw/
+data/processed/
+data/microscope_samples/raw_fields/
+models/backbones/
+models/classifier/
+models/detector/
+outputs/
+!outputs/.gitkeep
+!data/manifests/.gitkeep

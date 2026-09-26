@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "datasets": [
+    {
+      "name": "MLL23",
+      "version": "not_downloaded",
+      "source_url": "https://zenodo.org/records/14277609",
+      "downloaded_at": null,
+      "license": "verify_from_zenodo_record_before_use",
+      "purpose": ["classifier_training", "classifier_evaluation"],
+      "local_path": "data/raw/MLL23",
+      "checksum_manifest": "data/manifests/mll23_checksums.csv",
+      "label_mapping": "configs/mappings/mll23.yaml",
+      "grouping_field": "patient_or_source_group"
+    }
+  ],
+  "models": [
+    {
+      "name": "DinoBloom-B",
+      "variant": "ViT-B/14",
+      "embedding_dim": 768,
+      "source_url": "https://github.com/marrlab/DinoBloom",
+      "local_path": "models/backbones/dinobloom-b.pth",
+      "sha256": null,
+      "license": "verify_weight_artifact_before_use",
+      "status": "missing_until_user_downloads_explicit_weight"
+    }
+  ]
+}

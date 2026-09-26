@@ -1,0 +1,152 @@
+from __future__ import annotations
+
+from collections import Counter
+import csv
+from dataclasses import dataclass
+from pathlib import Path
+
+from bloodfilm.data.mappings import load_label_mapping
+from bloodfilm.errors import (
+    ImageDecodeError,
+    InputNotFoundError,
+    MappingError,
+    UnsupportedImageFormatError,
+)
+from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, load_image
+from bloodfilm.schemas import InvalidManifestRow, MLL23_CANONICAL_CLASSES, ManifestRow
+from bloodfilm.util import sha256_file
+
+
+@dataclass(frozen=True)
+class ManifestBuildResult:
+    valid_rows: list[ManifestRow]
+    invalid_rows: list[InvalidManifestRow]
+    class_distribution: dict[str, int]
+
+
+def build_mll23_manifest(dataset_root: Path | str, mapping_path: Path | str) -> ManifestBuildResult:
+    root = Path(dataset_root)
+    mapping = load_label_mapping(mapping_path)
+    if not root.exists():
+        raise InputNotFoundError(f"MLL23 dataset root not found: {root}")
+    if mapping.canonical_classes != MLL23_CANONICAL_CLASSES:
+        raise MappingError("MLL23 mapping must contain the exact ordered 18 canonical classes")
+    valid: list[ManifestRow] = []
+    invalid: list[InvalidManifestRow] = []
+    for image_path in _iter_dataset_files(root):
+        source_folder = _source_folder(root, image_path)
+        if image_path.suffix.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
+            invalid.append(
+                InvalidManifestRow(
+                    image_path=str(image_path),
+                    source_folder=source_folder,
+                    reason="UNSUPPORTED_IMAGE_FORMAT",
+                    detail=f"Unsupported image extension: {image_path.suffix.lower()}",
+                )
+            )
+            continue
+        canonical = mapping.canonical_for(source_folder)
+        if canonical is None:
+            invalid.append(
+                InvalidManifestRow(
+                    image_path=str(image_path),
+                    source_folder=source_folder,
+                    reason="unmapped_label",
+                    detail=f"No mapping for source folder {source_folder!r}",
+                )
+            )
+            continue
+        try:
+            image = load_image(image_path)
+        except (ImageDecodeError, UnsupportedImageFormatError) as exc:
+            invalid.append(
+                InvalidManifestRow(
+                    image_path=str(image_path),
+                    source_folder=source_folder,
+                    reason=exc.code,
+                    detail=str(exc),
+                )
+            )
+            continue
+        checksum = sha256_file(image_path)
+        relative_path = image_path.relative_to(root).as_posix()
+        image_id = checksum[:16]
+        valid.append(
+            ManifestRow(
+                image_id=image_id,
+                image_path=relative_path,
+                source_folder=source_folder,
+                canonical_label=canonical,
+                sha256=checksum,
+                width=image.width,
+                height=image.height,
+                mode=image.mode,
+                patient_or_source_group=f"ungrouped:{image_id}",
+            )
+        )
+    counts = Counter(row.canonical_label for row in valid)
+    distribution = {class_name: counts.get(class_name, 0) for class_name in MLL23_CANONICAL_CLASSES}
+    return ManifestBuildResult(
+        valid_rows=valid, invalid_rows=invalid, class_distribution=distribution
+    )
+
+
+def write_manifest(path: Path | str, rows: list[ManifestRow]) -> None:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(ManifestRow.__dataclass_fields__))
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row.__dict__)
+
+
+def write_invalid_manifest(path: Path | str, rows: list[InvalidManifestRow]) -> None:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(InvalidManifestRow.__dataclass_fields__))
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row.__dict__)
+
+
+def write_checksum_manifest(path: Path | str, rows: list[ManifestRow]) -> None:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["image_id", "image_path", "sha256"])
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {"image_id": row.image_id, "image_path": row.image_path, "sha256": row.sha256}
+            )
+
+
+def read_manifest(path: Path | str) -> list[ManifestRow]:
+    with Path(path).open("r", newline="", encoding="utf-8") as handle:
+        return [
+            ManifestRow(
+                image_id=row["image_id"],
+                image_path=row["image_path"],
+                source_folder=row["source_folder"],
+                canonical_label=row["canonical_label"],
+                sha256=row["sha256"],
+                width=int(row["width"]),
+                height=int(row["height"]),
+                mode=row["mode"],
+                patient_or_source_group=row["patient_or_source_group"],
+            )
+            for row in csv.DictReader(handle)
+        ]
+
+
+def _iter_dataset_files(root: Path) -> list[Path]:
+    return sorted(path for path in root.rglob("*") if path.is_file())
+
+
+def _source_folder(root: Path, image_path: Path) -> str:
+    relative = image_path.relative_to(root)
+    if len(relative.parts) < 2:
+        return ""
+    return relative.parts[0]

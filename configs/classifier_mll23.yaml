@@ -1,0 +1,17 @@
+{
+  "project": {"seed": 42, "device": "auto", "run_root": "outputs/runs"},
+  "classifier": {
+    "backbone": "dinobloom_b",
+    "weights": "models/backbones/dinobloom-b.pth",
+    "head": "linear",
+    "class_names_file": "configs/mappings/mll23.yaml",
+    "num_classes": 18,
+    "batch_size": 32,
+    "mixed_precision": true
+  },
+  "dataset": {
+    "mll23_root": "data/raw/MLL23",
+    "manifest_path": "data/manifests/mll23_manifest.csv",
+    "split_manifest_path": "data/manifests/mll23_splits.csv"
+  }
+}

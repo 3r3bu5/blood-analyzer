@@ -1,0 +1,37 @@
+{
+  "project": {
+    "seed": 42,
+    "device": "auto",
+    "run_root": "outputs/runs"
+  },
+  "quality": {
+    "min_width": 512,
+    "min_height": 512,
+    "min_focus_score": null,
+    "min_mean_brightness": null,
+    "max_mean_brightness": null,
+    "max_dark_fraction": null,
+    "max_bright_fraction": null,
+    "action_on_unusable": "stop"
+  },
+  "imaging": {
+    "crop_padding_ratio": 0.1,
+    "color_normalization": "none",
+    "save_crops": true,
+    "save_annotated": true
+  },
+  "classifier": {
+    "backbone": "dinobloom_b",
+    "weights": "models/backbones/dinobloom-b.pth",
+    "class_names_file": "configs/mappings/mll23.yaml",
+    "num_classes": 18
+  },
+  "dataset": {
+    "mll23_root": "data/raw/MLL23",
+    "manifest_path": "data/manifests/mll23_manifest.csv",
+    "split_manifest_path": "data/manifests/mll23_splits.csv"
+  },
+  "registry": {
+    "assets": "configs/registry/assets.yaml"
+  }
+}
