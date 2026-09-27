@@ -1,0 +1,51 @@
+{
+  "classes": {
+    "platelets": {
+      "box_count": 543,
+      "class_id": 2
+    },
+    "rbc": {
+      "box_count": 16302,
+      "class_id": 1
+    },
+    "wbc": {
+      "box_count": 1298,
+      "class_id": 0
+    }
+  },
+  "data_yaml": "data/raw/TXL-PBC/TXL-PBC/data.yaml",
+  "dataset": "TXL-PBC",
+  "dataset_root": "data/raw/TXL-PBC/TXL-PBC",
+  "dimensions": {
+    "max_height": 575,
+    "max_width": 640,
+    "measured_images": 1260,
+    "min_height": 256,
+    "min_width": 256
+  },
+  "images": {
+    "count": 1260,
+    "splits": {
+      "test": 126,
+      "train": 882,
+      "val": 252
+    }
+  },
+  "invalid_labels": [],
+  "labels": {
+    "count": 1260,
+    "splits": {
+      "test": 126,
+      "train": 882,
+      "val": 252
+    }
+  },
+  "notes": [
+    "TXL-PBC is a broad detection dataset; MLL23 remains the 18-class classifier source.",
+    "Verify downloaded data.yaml class IDs before training; do not assume WBC numeric ID."
+  ],
+  "source_revision": null,
+  "status": "ok",
+  "unreadable_images": [],
+  "wbc_class_id": 0
+}
