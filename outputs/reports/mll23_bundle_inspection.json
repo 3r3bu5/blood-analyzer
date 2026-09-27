@@ -3,10 +3,10 @@
     "backbone": "DinoBloom-B",
     "backbone_expected_path": "models/backbones/dinobloom-b.pth",
     "backbone_sha256": "fdd8e51fd9831858c96cb241a694dd9d64cc28941ec2a923f1fa1e9b5c610a3f",
-    "created_at": "2026-09-27T09:34:22.174436+00:00",
+    "created_at": "2026-09-27T10:35:21.508966+00:00",
     "dataset": {
-      "invalid_item_count": 37,
-      "invalid_manifest_sha256": "b28d3ba12d879c40e035e4bd98585d546aaa0d84fd9e717300a97715f97c10c0",
+      "invalid_item_count": 19,
+      "invalid_manifest_sha256": "c9111fd4b9ebecd660a114b8b857c45d5910c5f2871c8d3b56a6b69ebe402db9",
       "manifest_sha256": "ef36aa0389dc151a7691136292c6c24460047e564e66b17601516700b16e097e",
       "name": "MLL23",
       "valid_image_count": 41621
@@ -27,7 +27,7 @@
     "research_only": true,
     "schema_version": 1,
     "software_versions": {
-      "python": "3.12.13"
+      "python": "3.12.3"
     },
     "version": "0.1"
   },
@@ -36,8 +36,8 @@
   "files": {
     "bundle.json": {
       "exists": true,
-      "sha256": "b2d6401e10eabe68cb7fe3ed632b110eca599cd6981e3eb7ef472206e0a1da4f",
-      "size_bytes": 1237
+      "sha256": "5c536f5505eeddaa7643a9960ffc0bc40c0cd9757db01d1f509303596a749a7a",
+      "size_bytes": 1236
     },
     "calibration.json": {
       "exists": true,
@@ -56,8 +56,8 @@
     },
     "model_card.md": {
       "exists": true,
-      "sha256": "a76ce720af841bbf893b85d98a9f805a9e909f28403ebe892fc2fbe34bc9b474",
-      "size_bytes": 195
+      "sha256": "54c64c9e54f2691100380a90198f7d8fa18928f42603d53827c136c8b2891066",
+      "size_bytes": 4843
     },
     "preprocessing.json": {
       "exists": true,
@@ -66,7 +66,7 @@
     },
     "sha256sums.txt": {
       "exists": true,
-      "sha256": "1a64f278bcc37ba2129186258828f53094efc00be3dc73843788abac9a34b208",
+      "sha256": "5f796b14305372b9b14a5d6fc703dedf8d399fa593055fe56dde11d5ed701733",
       "size_bytes": 641
     },
     "taxonomy.json": {

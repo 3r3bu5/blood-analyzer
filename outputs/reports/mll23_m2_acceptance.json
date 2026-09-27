@@ -1,12 +1,14 @@
 {
   "artifact_integrity_result": "ok",
-  "blockers": [],
+  "blockers": [
+    "verification_missing"
+  ],
   "bundle": "models/mll23-dinobloom-b-mlp-v0.1",
   "bundle_sha256_values": {
     "bundle.json": {
       "exists": true,
-      "sha256": "b2d6401e10eabe68cb7fe3ed632b110eca599cd6981e3eb7ef472206e0a1da4f",
-      "size_bytes": 1237
+      "sha256": "5c536f5505eeddaa7643a9960ffc0bc40c0cd9757db01d1f509303596a749a7a",
+      "size_bytes": 1236
     },
     "calibration.json": {
       "exists": true,
@@ -25,8 +27,8 @@
     },
     "model_card.md": {
       "exists": true,
-      "sha256": "a76ce720af841bbf893b85d98a9f805a9e909f28403ebe892fc2fbe34bc9b474",
-      "size_bytes": 195
+      "sha256": "54c64c9e54f2691100380a90198f7d8fa18928f42603d53827c136c8b2891066",
+      "size_bytes": 4843
     },
     "preprocessing.json": {
       "exists": true,
@@ -35,7 +37,7 @@
     },
     "sha256sums.txt": {
       "exists": true,
-      "sha256": "1a64f278bcc37ba2129186258828f53094efc00be3dc73843788abac9a34b208",
+      "sha256": "5f796b14305372b9b14a5d6fc703dedf8d399fa593055fe56dde11d5ed701733",
       "size_bytes": 641
     },
     "taxonomy.json": {
@@ -50,7 +52,7 @@
     }
   },
   "calibration_result": "outputs/reports/mll23_calibration.json",
-  "created_at": "2026-09-27T10:15:59.941610+00:00",
+  "created_at": "2026-09-27T10:36:44.976897+00:00",
   "evaluation_protocol_result": "ok",
   "inference_parity_result": {
     "checkpoint": "outputs/checkpoints/mlp.pt",
@@ -273,14 +275,8 @@
     "top2_accuracy": 0.988056810845707
   },
   "split_integrity_result": "ok",
-  "status": "accepted_with_limitations",
-  "test_lint_typecheck": "passed",
+  "status": "blocked",
+  "test_lint_typecheck": "missing",
   "uncertainty_policy_result": "configured",
-  "verification": {
-    "mypy": "passed",
-    "note": "local refresh with Kaggle parity evidence",
-    "pytest": "passed",
-    "pytest_summary": "127 passed, 7 skipped",
-    "ruff": "passed"
-  }
+  "verification": {}
 }
