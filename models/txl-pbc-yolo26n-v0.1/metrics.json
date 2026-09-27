@@ -1,0 +1,23 @@
+{
+  "dataset": "TXL-PBC",
+  "false_positives_per_image": 0.001,
+  "image_count": 126,
+  "inference_ms_per_image": 6.7,
+  "mAP50": 0.995,
+  "mAP50_95": 0.886,
+  "missed_wbc_count": 0,
+  "missed_wbc_rate": 0.0,
+  "model": "YOLO26n",
+  "notes": [
+    "Metrics copied from Ultralytics YOLO test-split validation output.",
+    "One test image reported duplicate labels removed by Ultralytics cache build.",
+    "False positives per image is estimated from rounded precision/instance summary."
+  ],
+  "postprocess_ms_per_image": 3.0,
+  "precision": 0.999,
+  "preprocess_ms_per_image": 2.8,
+  "recall": 1.0,
+  "split": "test",
+  "wbc_instance_count": 131,
+  "weights": "runs/detect/outputs/detector/txl-pbc-yolo26n/weights/best.pt"
+}

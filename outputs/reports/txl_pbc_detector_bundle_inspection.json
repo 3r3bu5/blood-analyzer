@@ -1,0 +1,29 @@
+{
+  "bundle": {
+    "architecture": "YOLO26n",
+    "config_file": "config.json",
+    "created_at": "2026-09-27T12:04:47.859775+00:00",
+    "dataset_audit_file": "dataset_audit.json",
+    "implementation": "ultralytics_yolo",
+    "known_limitations": [
+      "Research-only detector; not a diagnostic device.",
+      "TXL-PBC detects broad WBC candidates and does not establish 18-class morphology.",
+      "Local microscope-field validation is still required before operational use."
+    ],
+    "metrics_file": "metrics.json",
+    "name": "txl-pbc-yolo26n-v0.1",
+    "research_only": true,
+    "schema_version": 1,
+    "software_versions": {
+      "python": "3.12.13"
+    },
+    "thresholds_file": "thresholds.json",
+    "version": "0.1",
+    "weights_file": "weights.pt",
+    "weights_sha256": "2f7501ffd3b9f8b302d30defe33221e8676c4b53d0d02e5ee65ee0dd328be5de"
+  },
+  "bundle_dir": "models/txl-pbc-yolo26n-v0.1",
+  "checksum_errors": [],
+  "missing_files": [],
+  "status": "ok"
+}

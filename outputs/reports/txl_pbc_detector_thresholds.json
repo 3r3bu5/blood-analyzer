@@ -1,0 +1,25 @@
+{
+  "candidates": [
+    {
+      "confidence_threshold": 0.25,
+      "false_positives_per_image": 0.001,
+      "precision": 0.999,
+      "recall": 1.0
+    }
+  ],
+  "max_false_positives_per_image": 2.0,
+  "notes": [
+    "Threshold sweep not yet run; selected configurable default 0.25 after strong test recall.",
+    "Run prediction-level threshold sweep before clinical or operational use."
+  ],
+  "primary_objective": "wbc_recall",
+  "selected": {
+    "confidence_threshold": 0.25,
+    "false_positives_per_image": 0.001,
+    "iou_threshold": 0.5,
+    "precision": 0.999,
+    "recall": 1.0,
+    "selection_reason": "default_threshold_meets_high_recall_on_test_summary"
+  },
+  "target_recall": 0.95
+}

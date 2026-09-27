@@ -1,0 +1,10 @@
+{
+  "data_yaml": "data/detection/txl-pbc-wbc-yolo/data.yaml",
+  "images_copied": 1260,
+  "labels_written": 1260,
+  "output_root": "data/detection/txl-pbc-wbc-yolo",
+  "source_root": "data/raw/TXL-PBC/TXL-PBC",
+  "status": "ok",
+  "wbc_boxes": 1298,
+  "wbc_class_id": 0
+}

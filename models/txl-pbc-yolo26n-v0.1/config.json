@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "implementation": "ultralytics_yolo",
+    "weights": "models/detector/wbc_detector.pt",
+    "confidence_threshold": 0.25,
+    "iou_threshold": 0.5,
+    "image_size": 640,
+    "threshold_selection": {
+      "target_recall": 0.95,
+      "max_false_positives_per_image": 2.0,
+      "primary_objective": "wbc_recall"
+    }
+  }
+}
