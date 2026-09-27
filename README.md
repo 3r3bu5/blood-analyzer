@@ -1,6 +1,6 @@
 # WBC Blood Film Analyzer
 
-Research proof-of-concept scaffold for the first M0 and M1 milestones in `WBC_Blood_Film_Analyzer_Technical_Design.md`.
+Research proof-of-concept scaffold for the M0/M1 data gates and the M2 DinoBloom-B MLL23 classifier baseline in `WBC_Blood_Film_Analyzer_Technical_Design.md`.
 
 Implemented now:
 
@@ -10,16 +10,20 @@ Implemented now:
 - asset registry and DinoBloom-B smoke checks that fail clearly when weights are absent
 - PNG image intake and quality measurements without silently substituting models
 - MLL23 mapping, manifest, audit, checksum, and deterministic split workflow
+- frozen DinoBloom-B embedding extraction for MLL23 crops
+- linear, MLP, and cosine head training from cached embeddings
+- research-only classifier bundle packaging and inspection
+- single-crop and folder classification commands that fail clearly when weights or ML dependencies are absent
 
 Not implemented yet:
 
-- classifier training or detector training
-- real DinoBloom-B inference without explicit local weights, the vendored backbone architecture, and ML dependencies
-- clinical validation or performance claims
+- detector training or end-to-end field analysis
+- clinical validation or diagnostic use
 
-Future placeholders not validated in M0/M1 (kept for later milestones, not wired to any command):
+Configuration files:
 
 - `configs/classifier_mll23.yaml` (M2 classifier baseline settings)
+- `configs/classifier_uncertainty.yaml` (research-only classifier review thresholds)
 - `configs/detector_txl_pbc.yaml` (M3 detector settings)
 - `configs/inference.yaml` (M4 analyzer settings)
 - `configs/mappings/wbcbench.yaml`, `matek19.yaml`, `bodzas.yaml` (M7 external-dataset mappings)
@@ -35,6 +39,12 @@ PYTHONPATH=src python3 -m bloodfilm.cli assets verify mll23 --report-output outp
 PYTHONPATH=src python3 -m bloodfilm.cli dataset audit mll23 --report-output outputs/reports/mll23_audit.json
 PYTHONPATH=src python3 -m bloodfilm.cli dataset build-manifest mll23 --output data/manifests/mll23_manifest.csv --invalid-output data/manifests/mll23_invalid.csv --checksum-output data/manifests/mll23_checksums.csv --report-output outputs/reports/mll23_audit.json
 PYTHONPATH=src python3 -m bloodfilm.cli dataset split --manifest data/manifests/mll23_manifest.csv --output data/manifests/mll23_splits.csv --report-output outputs/reports/mll23_leakage_report.json
+PYTHONPATH=src python3 -m bloodfilm.cli embeddings extract --config configs/classifier_mll23.yaml --splits data/manifests/mll23_splits.csv --device auto --output data/embeddings/mll23_embeddings.pt --report-output outputs/reports/mll23_embeddings.json
+PYTHONPATH=src python3 -m bloodfilm.cli train classifier --config configs/classifier_mll23.yaml --head all --embeddings data/embeddings/mll23_embeddings.pt --checkpoint-dir outputs/checkpoints --report-output outputs/reports/mll23_head_comparison.json
+PYTHONPATH=src python3 -m bloodfilm.cli classifier package-bundle --checkpoint outputs/checkpoints/mlp.pt --comparison-report outputs/reports/mll23_head_comparison.json --bundle models/mll23-dinobloom-b-mlp-v0.1
+PYTHONPATH=src python3 -m bloodfilm.cli classifier inspect-bundle --bundle models/mll23-dinobloom-b-mlp-v0.1 --output outputs/reports/mll23_bundle_inspection.json
+PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-crop --bundle models/mll23-dinobloom-b-mlp-v0.1 --image path/to/cell.tif --output outputs/predictions/cell.json
+PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-folder --bundle models/mll23-dinobloom-b-mlp-v0.1 --input path/to/crops --output outputs/predictions/
 ```
 
 The `data` command group remains as an alias of `dataset`. The `scripts/` wrappers
@@ -78,6 +88,6 @@ print("Inspect file entries and license, then download the class archives into d
 PY
 ```
 
-Do not claim an independent split until official patient/source grouping metadata has been inspected and recorded.
+Do not claim an independent split until official patient/source grouping metadata has been inspected and recorded. Do not report test-set classifier metrics until the dedicated final test evaluation has been run in a Torch-capable environment and the resulting report is present.
 
 The committed `configs/mappings/mll23.yaml` fixes the canonical project class order, but its folder-label mappings are marked provisional until the downloaded release labels are inspected.

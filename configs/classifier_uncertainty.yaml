@@ -1,0 +1,11 @@
+{
+  "min_accept_confidence": 0.80,
+  "min_accept_margin": 0.15,
+  "max_accept_entropy": null,
+  "unknown_below_confidence": 0.35,
+  "require_review_for_classes": [
+    "myeloblast",
+    "promyelocyte_atypical",
+    "lymphocyte_neoplastic_other"
+  ]
+}

@@ -31,7 +31,7 @@ from bloodfilm.data import (
 )
 from bloodfilm.documents import write_json
 from bloodfilm.environment import capture_environment_report
-from bloodfilm.errors import BloodFilmError, ConfigError
+from bloodfilm.errors import BloodFilmError, ConfigError, InputNotFoundError
 from bloodfilm.imaging import assess_quality, load_image
 
 
@@ -173,6 +173,105 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("outputs/reports/mll23_embeddings.json"),
     )
     embeddings_extract.set_defaults(handler=_embeddings_extract)
+
+    classifier = subcommands.add_parser(
+        "classifier", help="Classifier bundle and inference workflows"
+    )
+    classifier_subcommands = classifier.add_subparsers(required=True)
+
+    inspect_bundle = classifier_subcommands.add_parser(
+        "inspect-bundle", help="Inspect a packaged classifier bundle"
+    )
+    inspect_bundle.add_argument("--bundle", type=Path, required=True)
+    inspect_bundle.add_argument("--output", type=Path, default=None)
+    inspect_bundle.set_defaults(handler=_classifier_inspect_bundle)
+
+    package_bundle = classifier_subcommands.add_parser(
+        "package-bundle", help="Package a trained classifier head as a research-only bundle"
+    )
+    package_bundle.add_argument("--checkpoint", type=Path, required=True)
+    package_bundle.add_argument(
+        "--comparison-report",
+        type=Path,
+        default=Path("outputs/reports/mll23_head_comparison.json"),
+    )
+    package_bundle.add_argument(
+        "--thresholds", type=Path, default=Path("configs/classifier_uncertainty.yaml")
+    )
+    package_bundle.add_argument(
+        "--test-report", type=Path, default=Path("outputs/reports/mll23_test_evaluation.json")
+    )
+    package_bundle.add_argument(
+        "--bundle", type=Path, default=Path("models/mll23-dinobloom-b-mlp-v0.1")
+    )
+    package_bundle.set_defaults(handler=_classifier_package_bundle)
+
+    validation_reports = classifier_subcommands.add_parser(
+        "validation-reports", help="Write post-training classifier validation reports"
+    )
+    validation_reports.add_argument(
+        "--manifest", type=Path, default=Path("data/manifests/mll23_manifest.csv")
+    )
+    validation_reports.add_argument(
+        "--splits", type=Path, default=Path("data/manifests/mll23_splits.csv")
+    )
+    validation_reports.add_argument(
+        "--invalid-manifest", type=Path, default=Path("data/manifests/mll23_invalid.csv")
+    )
+    validation_reports.add_argument(
+        "--embeddings-report", type=Path, default=Path("outputs/reports/mll23_embeddings.json")
+    )
+    validation_reports.add_argument(
+        "--comparison-report", type=Path, default=Path("outputs/reports/mll23_head_comparison.json")
+    )
+    validation_reports.add_argument(
+        "--bundle-inspection",
+        type=Path,
+        default=Path("outputs/reports/mll23_bundle_inspection.json"),
+    )
+    validation_reports.add_argument(
+        "--thresholds", type=Path, default=Path("configs/classifier_uncertainty.yaml")
+    )
+    validation_reports.add_argument(
+        "--test-evaluation", type=Path, default=Path("outputs/reports/mll23_test_evaluation.json")
+    )
+    validation_reports.add_argument("--output-dir", type=Path, default=Path("outputs/reports"))
+    validation_reports.set_defaults(handler=_classifier_validation_reports)
+
+    evaluate_cache = classifier_subcommands.add_parser(
+        "evaluate-cache", help="Evaluate a trained head on one cached embedding split"
+    )
+    evaluate_cache.add_argument("--checkpoint", type=Path, required=True)
+    evaluate_cache.add_argument(
+        "--embeddings", type=Path, default=Path("data/embeddings/mll23_embeddings.pt")
+    )
+    evaluate_cache.add_argument("--split", type=str, default="test", choices=["validation", "test"])
+    evaluate_cache.add_argument("--output", type=Path, required=True)
+    evaluate_cache.set_defaults(handler=_classifier_evaluate_cache)
+
+    classify_crop = classifier_subcommands.add_parser(
+        "classify-crop", help="Classify one already-cropped WBC image"
+    )
+    classify_crop.add_argument("--bundle", type=Path, required=True)
+    classify_crop.add_argument("--image", type=Path, required=True)
+    classify_crop.add_argument(
+        "--backbone-weights", type=Path, default=Path("models/backbones/dinobloom-b.pth")
+    )
+    classify_crop.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
+    classify_crop.add_argument("--output", type=Path, required=True)
+    classify_crop.set_defaults(handler=_classifier_classify_crop)
+
+    classify_folder = classifier_subcommands.add_parser(
+        "classify-folder", help="Classify every image crop in a folder"
+    )
+    classify_folder.add_argument("--bundle", type=Path, required=True)
+    classify_folder.add_argument("--input", type=Path, required=True)
+    classify_folder.add_argument(
+        "--backbone-weights", type=Path, default=Path("models/backbones/dinobloom-b.pth")
+    )
+    classify_folder.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
+    classify_folder.add_argument("--output", type=Path, required=True)
+    classify_folder.set_defaults(handler=_classifier_classify_folder)
 
     split = data_subcommands.add_parser(
         "split", help="Create deterministic train/validation/test split"
@@ -440,6 +539,178 @@ def _embeddings_extract(args: argparse.Namespace) -> int:
     )
     print(args.report_output)
     return 0
+
+
+def _classifier_inspect_bundle(args: argparse.Namespace) -> int:
+    from bloodfilm.classification.bundle import inspect_bundle
+
+    report = inspect_bundle(args.bundle)
+    if args.output is not None:
+        write_json(args.output, report)
+        print(args.output)
+    else:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    return 0
+
+
+def _classifier_package_bundle(args: argparse.Namespace) -> int:
+    from bloodfilm.classification.bundle import write_bundle_metadata
+    from bloodfilm.classification.uncertainty import UncertaintyPolicy
+    from bloodfilm.documents import load_config_document
+    from bloodfilm.ml import require_torch
+
+    torch = require_torch("Classifier bundle packaging")
+    comparison = load_config_document(args.comparison_report)
+    selected = str(comparison["selected"])
+    head_metrics = comparison["heads"][selected]
+    thresholds = load_config_document(args.thresholds)
+    test_report = load_config_document(args.test_report) if args.test_report.exists() else None
+    if not args.checkpoint.exists():
+        raise InputNotFoundError(f"Checkpoint not found: {args.checkpoint}")
+    checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+    class_names = _checkpoint_class_names(checkpoint)
+    if checkpoint.get("head") != selected:
+        raise ConfigError("Checkpoint head does not match selected comparison head")
+    if "model_state" not in checkpoint:
+        raise ConfigError("Checkpoint is missing model_state")
+    metrics: dict[str, object] = {
+        "selection_report": str(args.comparison_report),
+        "selection_metric": comparison.get("selection_metric", "macro_f1"),
+        "validation": head_metrics,
+        "all_heads": comparison["heads"],
+    }
+    if test_report is not None:
+        metrics["test"] = test_report
+    write_bundle_metadata(
+        args.bundle,
+        head_checkpoint=args.checkpoint,
+        class_names=class_names,
+        head_name=selected,
+        backbone_sha256=str(comparison["weight_sha256"]),
+        preprocessing_sha256=str(comparison["preprocessing_sha256"]),
+        temperature=float(head_metrics["temperature"]),
+        validation_metrics=metrics,
+        uncertainty_policy=UncertaintyPolicy(**thresholds),
+    )
+    print(args.bundle)
+    return 0
+
+
+def _classifier_validation_reports(args: argparse.Namespace) -> int:
+    from bloodfilm.classification.reports import write_post_training_reports
+
+    paths = write_post_training_reports(
+        manifest=args.manifest,
+        splits=args.splits,
+        invalid_manifest=args.invalid_manifest,
+        embeddings_report=args.embeddings_report,
+        comparison_report=args.comparison_report,
+        bundle_inspection=args.bundle_inspection,
+        thresholds=args.thresholds,
+        test_evaluation=args.test_evaluation,
+        output_dir=args.output_dir,
+    )
+    for path in paths:
+        print(path)
+    return 0
+
+
+def _classifier_evaluate_cache(args: argparse.Namespace) -> int:
+    from bloodfilm.classification.embeddings import load_embedding_cache
+    from bloodfilm.classification.heads import build_head
+    from bloodfilm.errors import InputNotFoundError
+    from bloodfilm.evaluation.classifier import expected_calibration_error
+    from bloodfilm.ml import require_torch
+    from bloodfilm.training.classifier import cache_split_tensors, evaluate_head
+
+    if not args.checkpoint.exists():
+        raise InputNotFoundError(f"Checkpoint not found: {args.checkpoint}")
+    if not args.embeddings.exists():
+        raise InputNotFoundError(f"Embedding cache not found: {args.embeddings}")
+    torch = require_torch("Classifier cache evaluation")
+    checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+    cache = load_embedding_cache(args.embeddings)
+    head_name = str(checkpoint["head"])
+    class_names = [str(name) for name in checkpoint["class_names"]]
+    model = build_head(head_name, len(class_names))
+    model.load_state_dict(checkpoint["model_state"])
+    embeddings, labels = cache_split_tensors(cache, args.split)
+    evaluation = evaluate_head(model, embeddings, labels, class_names)
+    temperature = float(checkpoint.get("temperature", 1.0))
+    scaled = torch.softmax(evaluation["logits"] / temperature, dim=1).tolist()
+    report = {
+        "checkpoint": str(args.checkpoint),
+        "embeddings": str(args.embeddings),
+        "split": args.split,
+        "head": head_name,
+        "size": len(labels),
+        "temperature": temperature,
+        "metrics": evaluation["report"],
+        "top2_accuracy": evaluation["top2_accuracy"],
+        "ece_before": evaluation["ece"],
+        "ece_after": expected_calibration_error(scaled, labels, bins=15),
+    }
+    write_json(args.output, report)
+    print(args.output)
+    return 0
+
+
+def _classifier_classify_crop(args: argparse.Namespace) -> int:
+    from bloodfilm.classification.inference import classify_crop
+
+    prediction = classify_crop(
+        bundle_dir=args.bundle,
+        image_path=args.image,
+        backbone_weights=args.backbone_weights,
+        device=args.device,
+    )
+    write_json(args.output, prediction)
+    print(args.output)
+    return 0
+
+
+def _classifier_classify_folder(args: argparse.Namespace) -> int:
+    from bloodfilm.classification.inference import classify_crop
+
+    if not args.input.exists():
+        raise ConfigError(f"Input folder not found: {args.input}")
+    if not args.input.is_dir():
+        raise ConfigError(f"Input path is not a folder: {args.input}")
+    args.output.mkdir(parents=True, exist_ok=True)
+    image_paths = [path for path in sorted(args.input.iterdir()) if path.is_file()]
+    written: list[str] = []
+    for image_path in image_paths:
+        try:
+            prediction = classify_crop(
+                bundle_dir=args.bundle,
+                image_path=image_path,
+                backbone_weights=args.backbone_weights,
+                device=args.device,
+            )
+        except BloodFilmError as exc:
+            prediction = {
+                "research_only": True,
+                "image": str(image_path),
+                "decision": {"status": "unknown", "label": None, "reasons": [exc.code]},
+                "error": {"code": exc.code, "message": str(exc)},
+            }
+        output = args.output / f"{image_path.stem}.json"
+        write_json(output, prediction)
+        written.append(str(output))
+    write_json(args.output / "index.json", {"count": len(written), "predictions": written})
+    print(args.output)
+    return 0
+
+
+def _checkpoint_class_names(checkpoint: object) -> list[str]:
+    if not isinstance(checkpoint, dict):
+        raise ConfigError("Checkpoint must be a metadata dictionary")
+    raw = checkpoint.get("class_names")
+    if not isinstance(raw, list) or not all(isinstance(name, str) for name in raw):
+        raise ConfigError("Checkpoint is missing class_names")
+    if not raw:
+        raise ConfigError("Checkpoint class_names must not be empty")
+    return list(raw)
 
 
 def _resolve_device(args: argparse.Namespace) -> str:

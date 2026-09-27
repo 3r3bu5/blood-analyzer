@@ -937,16 +937,25 @@ python -m bloodfilm.cli data audit \
   --config configs/classifier_mll23.yaml
 
 python -m bloodfilm.cli embeddings extract \
-  --dataset mll23 \
-  --split train
-
-python -m bloodfilm.cli classifier train \
   --config configs/classifier_mll23.yaml \
-  --head linear
+  --splits data/manifests/mll23_splits.csv \
+  --device auto \
+  --output data/embeddings/mll23_embeddings.pt
 
-python -m bloodfilm.cli classifier evaluate \
-  --checkpoint models/classifier/<model_id> \
-  --split test
+python -m bloodfilm.cli train classifier \
+  --config configs/classifier_mll23.yaml \
+  --head all \
+  --embeddings data/embeddings/mll23_embeddings.pt
+
+python -m bloodfilm.cli classifier package-bundle \
+  --checkpoint outputs/checkpoints/mlp.pt \
+  --comparison-report outputs/reports/mll23_head_comparison.json \
+  --bundle models/mll23-dinobloom-b-mlp-v0.1
+
+python -m bloodfilm.cli classifier classify-crop \
+  --bundle models/mll23-dinobloom-b-mlp-v0.1 \
+  --image path/to/cell.tif \
+  --output outputs/predictions/cell.json
 
 python -m bloodfilm.cli detector train \
   --config configs/detector_txl_pbc.yaml
