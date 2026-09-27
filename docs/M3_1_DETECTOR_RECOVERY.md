@@ -81,6 +81,25 @@ PYTHONPATH=src python3 -m pytest -q
 /tmp/opencode/typecheck-venv/bin/python -m mypy src
 ```
 
+Create a Kaggle training plan after the unified YOLO `data.yaml` exists:
+
+```bash
+PYTHONPATH=src python3 scripts/kaggle_train_detector_multidomain.py \
+  --data-yaml data/detection/multidomain/data.yaml \
+  --project-dir outputs/detector_multidomain \
+  --dry-run
+```
+
+Run the two Kaggle experiments on a CUDA-enabled Kaggle notebook or script session:
+
+```bash
+PYTHONPATH=src python3 scripts/kaggle_train_detector_multidomain.py \
+  --data-yaml data/detection/multidomain/data.yaml \
+  --project-dir outputs/detector_multidomain
+```
+
+Bring back the generated `outputs/detector_multidomain/` directory and `outputs/reports/detector_multidomain_kaggle_plan.json`. Do not package a selected detector until truthful evaluation reports and target-smoke reports exist.
+
 ## Not Yet Implemented
 
 These commands are part of the M3.1 plan but are intentionally not documented as runnable until implemented:
@@ -88,7 +107,6 @@ These commands are part of the M3.1 plan but are intentionally not documented as
 - unified multidomain manifest preparation CLI
 - annotation overlay gallery rendering CLI
 - target smoke-test evaluator with reviewed labels
-- Kaggle training launch scripts for Experiments A and B
 - trained multidomain model packaging
 
 ## Validation Status
