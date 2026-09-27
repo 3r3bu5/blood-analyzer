@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from bloodfilm.classification.inference import classify_probabilities
 from bloodfilm.classification.uncertainty import UncertaintyPolicy
 
@@ -22,3 +24,46 @@ def test_classify_probabilities_returns_ranked_research_only_payload() -> None:
         "eosinophil",
         "monocyte",
     ]
+
+
+def test_preprocess_crop_rejects_corrupt_image(tmp_path: Path) -> None:
+    pytest.importorskip("PIL")
+    pytest.importorskip("torchvision")
+    from bloodfilm.classification.dinobloom import preprocess_crop
+    from bloodfilm.errors import ModelLoadError
+
+    corrupt = tmp_path / "corrupt.png"
+    corrupt.write_bytes(b"not an image")
+
+    with pytest.raises(ModelLoadError, match="decode"):
+        preprocess_crop(corrupt)
+
+
+def test_preprocess_crop_is_deterministic(tmp_path: Path) -> None:
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("PIL")
+    pytest.importorskip("torchvision")
+    from bloodfilm.classification.dinobloom import preprocess_crop
+    from tests.helpers.png import write_rgb_png
+
+    image = tmp_path / "cell.png"
+    write_rgb_png(image, 4, 4, [(200, 30, 30)] * 16)
+
+    first = preprocess_crop(image)
+    second = preprocess_crop(image)
+
+    assert torch.equal(first, second)
+
+
+def test_classification_modules_do_not_import_torch_at_top_level() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    for relative in [
+        "src/bloodfilm/cli.py",
+        "src/bloodfilm/classification/inference.py",
+        "src/bloodfilm/classification/bundle.py",
+        "src/bloodfilm/classification/reports.py",
+    ]:
+        text = (repo_root / relative).read_text(encoding="utf-8")
+        assert "\nimport torch\n" not in text
+        assert "\nimport torch " not in text
+        assert "\nfrom torch" not in text

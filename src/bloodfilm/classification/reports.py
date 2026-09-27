@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import json
-import math
-import struct
-import zlib
 from collections import Counter
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from bloodfilm.classification.png import write_matrix_png, write_reliability_png
 from bloodfilm.data import create_leakage_report, read_manifest, read_split_manifest
 from bloodfilm.documents import write_json
 from bloodfilm.errors import ConfigError
@@ -18,6 +16,7 @@ from bloodfilm.evaluation.classifier import (
     confusion_matrix,
     coverage_accuracy_rows,
     detailed_per_class_metrics,
+    predictions_from_probabilities,
     reliability_bin_rows,
 )
 from bloodfilm.schemas import MLL23_CANONICAL_CLASSES
@@ -36,6 +35,7 @@ def write_post_training_reports(
     test_evaluation: Path,
     output_dir: Path,
     parity_evidence: Path | None = None,
+    verification_report: Path | None = None,
 ) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     comparison = _read_json(comparison_report)
@@ -44,6 +44,11 @@ def write_post_training_reports(
     threshold_doc = _read_json(thresholds)
     test_report = _read_json(test_evaluation) if test_evaluation.exists() else None
     parity = parity_report(parity_evidence)
+    verification = (
+        _read_json(verification_report)
+        if verification_report is not None and verification_report.exists()
+        else None
+    )
     outputs = [
         _write(
             output_dir / "mll23_artifact_integrity.json",
@@ -87,6 +92,7 @@ def write_post_training_reports(
                 bundle_inspection=inspection,
                 parity=parity,
                 output_dir=output_dir,
+                verification=verification,
             ),
         )
     )
@@ -108,7 +114,7 @@ def write_evaluation_artifacts(
     uncertainty_policy: Any,
 ) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    predictions = _predictions(probabilities_after)
+    predictions = predictions_from_probabilities(probabilities_after)
     matrix = confusion_matrix(predictions, labels, len(class_names))
     per_class = detailed_per_class_metrics(probabilities_after, labels, class_names)
     calibration_before = calibration_summary(probabilities_before, labels)
@@ -151,7 +157,7 @@ def write_evaluation_artifacts(
         _matrix_rows(_normalize_matrix(matrix), class_names),
     )
     paths.append(output_dir / "mll23_confusion_matrix_normalized.csv")
-    _write_matrix_png(output_dir / "mll23_confusion_matrix.png", matrix)
+    write_matrix_png(output_dir / "mll23_confusion_matrix.png", matrix)
     paths.append(output_dir / "mll23_confusion_matrix.png")
     write_csv_rows(
         output_dir / "mll23_high_confidence_errors.csv",
@@ -167,7 +173,7 @@ def write_evaluation_artifacts(
     paths.append(output_dir / "mll23_high_confidence_errors.csv")
     write_csv_rows(output_dir / "mll23_reliability.csv", list(reliability[0]), reliability)
     paths.append(output_dir / "mll23_reliability.csv")
-    _write_reliability_png(output_dir / "mll23_reliability.png", reliability)
+    write_reliability_png(output_dir / "mll23_reliability.png", reliability)
     paths.append(output_dir / "mll23_reliability.png")
     write_csv_rows(
         output_dir / "mll23_coverage_accuracy.csv", list(coverage_rows[0]), coverage_rows
@@ -256,6 +262,10 @@ def evaluation_protocol_report(
         "validation_used_for_selection": selected_metrics.get("eval_split") == "validation",
         "temperature_fit_split": selected_metrics.get("eval_split"),
         "threshold_selection_split": "validation",
+        "threshold_selection_provenance": (
+            "assumed: thresholds config records no fit split; "
+            "policy defaults were chosen for validation use only"
+        ),
         "test_set_untouched_until_final_evaluation": test_report is not None
         and test_report.get("split") == "test",
         "embedding_cache": {
@@ -341,8 +351,10 @@ def acceptance_report(
     bundle_inspection: dict[str, Any],
     parity: dict[str, Any],
     output_dir: Path,
+    verification: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    blockers = []
+    blockers: list[str] = []
+    limitations: list[str] = []
     if artifact_report.get("status") != "ok":
         blockers.append("artifact_integrity")
     if split_report.get("status") != "ok":
@@ -353,7 +365,34 @@ def acceptance_report(
         blockers.append("bundle")
     if parity.get("status") != "ok":
         blockers.append("inference_parity")
-    status = "blocked" if blockers else "accepted_for_research_integration"
+    if not _bundle_class_order_ok(bundle_inspection):
+        blockers.append("class_order_mismatch")
+    if _split_leakage_detected(split_report):
+        blockers.append("split_leakage")
+    elif _surrogate_grouping_unverified(split_report):
+        limitations.append("surrogate_grouping_unverified")
+    if protocol_report.get("temperature_fit_split") == "test":
+        blockers.append("temperature_fit_on_test")
+    if not str(bundle_inspection.get("bundle", {}).get("preprocessing_sha256", "")):
+        blockers.append("bundle_preprocessing_missing")
+    policy = uncertainty_report.get("policy", {})
+    if (
+        uncertainty_report.get("status") != "configured"
+        or not isinstance(policy, dict)
+        or "min_accept_confidence" not in policy
+    ):
+        blockers.append("uncertainty_policy")
+    verification_status = _verification_status(verification)
+    if verification is None:
+        blockers.append("verification_missing")
+    elif verification_status != "passed":
+        blockers.append("verification_failed")
+    if blockers:
+        status = "blocked"
+    elif limitations:
+        status = "accepted_with_limitations"
+    else:
+        status = "accepted_for_research_integration"
     return {
         "status": status,
         "created_at": datetime.now(UTC).isoformat(),
@@ -371,22 +410,52 @@ def acceptance_report(
         "inference_parity_result": parity,
         "bundle": bundle_inspection.get("bundle_dir"),
         "bundle_sha256_values": bundle_inspection.get("files"),
+        "verification": verification or {},
+        "test_lint_typecheck": verification_status,
         "known_limitations": [
             "Research-only classifier; not a diagnostic device.",
             "MLL23 split uses image-level surrogate groups until official grouping metadata is available.",
             "Novelty and OOD behavior are heuristic without external OOD validation.",
         ],
+        "limitations": limitations,
         "blockers": blockers,
     }
+
+
+def _bundle_class_order_ok(inspection: dict[str, Any]) -> bool:
+    bundle = inspection.get("bundle", {})
+    taxonomy = inspection.get("taxonomy", {})
+    class_names = taxonomy.get("class_names")
+    return bool(
+        bundle.get("num_classes") == len(MLL23_CANONICAL_CLASSES)
+        and class_names == MLL23_CANONICAL_CLASSES
+    )
+
+
+def _split_leakage_detected(split_report: dict[str, Any]) -> bool:
+    leakage = split_report.get("leakage", {})
+    return bool(leakage.get("leaking_group_count", 0) or leakage.get("leakage_free") is False)
+
+
+def _surrogate_grouping_unverified(split_report: dict[str, Any]) -> bool:
+    leakage = split_report.get("leakage", {})
+    return leakage.get("leakage_free") is None
+
+
+def _verification_status(verification: dict[str, object] | None) -> str:
+    if verification is None:
+        return "missing"
+    values = [str(verification.get(key, "")).lower() for key in ("pytest", "ruff", "mypy")]
+    if not values or any(not value for value in values):
+        return "missing"
+    if all(value in {"passed", "ok", "success", "clean"} for value in values):
+        return "passed"
+    return "failed"
 
 
 def _duplicates(values: list[str]) -> list[str]:
     counts = Counter(values)
     return sorted(value for value, count in counts.items() if count > 1)
-
-
-def _predictions(probabilities: list[list[float]]) -> list[int]:
-    return [max(range(len(row)), key=row.__getitem__) for row in probabilities]
 
 
 def _without_bins(summary: dict[str, object]) -> dict[str, object]:
@@ -436,50 +505,6 @@ def _high_confidence_errors(
                 }
             )
     return rows
-
-
-def _write_matrix_png(path: Path, matrix: list[list[int]]) -> None:
-    max_value = max((max(row) for row in matrix if row), default=1)
-    pixels: list[tuple[int, int, int]] = []
-    for row in matrix:
-        for value in row:
-            shade = 255 - round(255 * math.sqrt(value / max_value)) if max_value else 255
-            pixels.append((shade, shade, 255))
-    _write_rgb_png(path, len(matrix), len(matrix), pixels)
-
-
-def _write_reliability_png(path: Path, rows: list[dict[str, float | int]]) -> None:
-    width = max(len(rows), 1)
-    height = 50
-    pixels = [(255, 255, 255)] * (width * height)
-    for x, row in enumerate(rows):
-        accuracy_height = round(float(row["accuracy"]) * (height - 1))
-        confidence_height = round(float(row["confidence"]) * (height - 1))
-        for y in range(height - accuracy_height, height):
-            pixels[y * width + x] = (80, 160, 80)
-        marker_y = max(0, height - confidence_height - 1)
-        pixels[marker_y * width + x] = (200, 40, 40)
-    _write_rgb_png(path, width, height, pixels)
-
-
-def _write_rgb_png(path: Path, width: int, height: int, pixels: list[tuple[int, int, int]]) -> None:
-    def chunk(kind: bytes, data: bytes) -> bytes:
-        body = kind + data
-        return (
-            struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
-        )
-
-    raw = bytearray()
-    for y in range(height):
-        raw.append(0)
-        for x in range(width):
-            raw.extend(pixels[y * width + x])
-    path.write_bytes(
-        b"\x89PNG\r\n\x1a\n"
-        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
-        + chunk(b"IDAT", zlib.compress(bytes(raw)))
-        + chunk(b"IEND", b"")
-    )
 
 
 def _read_json(path: Path) -> dict[str, Any]:

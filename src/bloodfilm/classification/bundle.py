@@ -9,7 +9,7 @@ from typing import Any
 from bloodfilm.classification.dinobloom import PREPROCESSING
 from bloodfilm.classification.uncertainty import UncertaintyPolicy
 from bloodfilm.documents import load_config_document, write_json
-from bloodfilm.errors import ConfigError, InputNotFoundError
+from bloodfilm.errors import ConfigError, InputNotFoundError, ModelLoadError
 from bloodfilm.util import sha256_file
 
 REQUIRED_BUNDLE_FILES = (
@@ -132,6 +132,29 @@ def inspect_bundle(bundle_dir: Path | str) -> dict[str, Any]:
     }
 
 
+def verify_bundle_head(bundle_doc: dict[str, Any], head_path: Path | str) -> None:
+    """Fail clearly when head.pt does not match bundle.json head_sha256."""
+    expected_head = bundle_doc.get("head_sha256")
+    if isinstance(expected_head, str) and sha256_file(head_path) != expected_head:
+        raise ConfigError("Classifier bundle head.pt checksum does not match bundle metadata")
+
+
+def verify_backbone_checksum(bundle_doc: dict[str, Any], backbone_weights: Path | str) -> None:
+    """Fail clearly when backbone weights do not match bundle metadata.
+
+    Missing weight files are left to the backbone loader so callers keep the
+    actionable missing-asset error.
+    """
+    expected_backbone_sha = str(bundle_doc.get("backbone_sha256", ""))
+    weights_path = Path(backbone_weights)
+    if (
+        expected_backbone_sha
+        and weights_path.exists()
+        and sha256_file(weights_path) != expected_backbone_sha
+    ):
+        raise ModelLoadError("DinoBloom-B backbone checksum does not match bundle metadata")
+
+
 def load_bundle_documents(bundle_dir: Path | str) -> dict[str, Any]:
     report = inspect_bundle(bundle_dir)
     if report["missing_files"]:
@@ -139,9 +162,7 @@ def load_bundle_documents(bundle_dir: Path | str) -> dict[str, Any]:
     bundle = Path(bundle_dir)
     _verify_sha256sums(bundle)
     bundle_doc = load_config_document(bundle / "bundle.json")
-    expected_head = bundle_doc.get("head_sha256")
-    if isinstance(expected_head, str) and sha256_file(bundle / "head.pt") != expected_head:
-        raise ConfigError("Classifier bundle head.pt checksum does not match bundle metadata")
+    verify_bundle_head(bundle_doc, bundle / "head.pt")
     return {
         "bundle": bundle_doc,
         "taxonomy": load_config_document(bundle / "taxonomy.json"),
@@ -190,9 +211,9 @@ def _bundle_checksum_errors(bundle: Path) -> list[str]:
     bundle_json = bundle / "bundle.json"
     head = bundle / "head.pt"
     if bundle_json.exists() and head.exists():
-        bundle_doc = load_config_document(bundle_json)
-        expected_head = bundle_doc.get("head_sha256")
-        if isinstance(expected_head, str) and sha256_file(head) != expected_head:
+        try:
+            verify_bundle_head(load_config_document(bundle_json), head)
+        except ConfigError:
             errors.append("head.pt mismatch with bundle.json head_sha256")
     return errors
 

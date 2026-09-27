@@ -243,6 +243,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validation_reports.add_argument("--output-dir", type=Path, default=Path("outputs/reports"))
     validation_reports.add_argument("--parity-evidence", type=Path, default=None)
+    validation_reports.add_argument("--verification-report", type=Path, default=None)
     validation_reports.set_defaults(handler=_classifier_validation_reports)
 
     evaluate_cache = classifier_subcommands.add_parser(
@@ -621,6 +622,7 @@ def _classifier_validation_reports(args: argparse.Namespace) -> int:
         thresholds=args.thresholds,
         test_evaluation=args.test_evaluation,
         parity_evidence=args.parity_evidence,
+        verification_report=args.verification_report,
         output_dir=args.output_dir,
     )
     for path in paths:

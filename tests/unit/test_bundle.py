@@ -49,6 +49,27 @@ def test_inspect_bundle_reports_missing_required_file(tmp_path: Path) -> None:
     assert "thresholds.json" in report["missing_files"]
 
 
+def test_verify_bundle_head_accepts_matching_checksum(tmp_path: Path) -> None:
+    from bloodfilm.classification.bundle import verify_bundle_head
+
+    bundle = tmp_path / "bundle"
+    _write_complete_bundle(bundle)
+    bundle_doc = json.loads((bundle / "bundle.json").read_text(encoding="utf-8"))
+
+    verify_bundle_head(bundle_doc, bundle / "head.pt")
+
+
+def test_verify_backbone_checksum_rejects_mismatch(tmp_path: Path) -> None:
+    from bloodfilm.classification.bundle import verify_backbone_checksum
+    from bloodfilm.errors import ModelLoadError
+
+    weights = tmp_path / "wrong.pth"
+    weights.write_bytes(b"wrong")
+
+    with pytest.raises(ModelLoadError, match="checksum"):
+        verify_backbone_checksum({"backbone_sha256": "f" * 64}, weights)
+
+
 def test_inspect_bundle_reports_checksum_mismatch_as_invalid(tmp_path: Path) -> None:
     bundle = tmp_path / "bundle"
     _write_complete_bundle(bundle)
@@ -58,6 +79,55 @@ def test_inspect_bundle_reports_checksum_mismatch_as_invalid(tmp_path: Path) -> 
 
     assert report["status"] == "invalid"
     assert report["checksum_errors"] != []
+
+
+def test_load_bundle_documents_rejects_missing_head(tmp_path: Path) -> None:
+    from bloodfilm.classification.bundle import load_bundle_documents
+    from bloodfilm.errors import ConfigError
+
+    bundle = tmp_path / "bundle"
+    _write_complete_bundle(bundle)
+    (bundle / "head.pt").unlink()
+
+    with pytest.raises(ConfigError, match="incomplete"):
+        load_bundle_documents(bundle)
+
+
+def test_classify_folder_writes_unknown_per_file_json(tmp_path: Path) -> None:
+    import json
+
+    from tests.helpers.png import write_rgb_png
+
+    bundle = tmp_path / "bundle"
+    _write_complete_bundle(bundle)
+    crops = tmp_path / "crops"
+    crops.mkdir()
+    write_rgb_png(crops / "a.png", 1, 1, [(255, 255, 255)])
+    write_rgb_png(crops / "b.png", 1, 1, [(0, 0, 0)])
+    output = tmp_path / "predictions"
+
+    exit_code = main(
+        [
+            "classifier",
+            "classify-folder",
+            "--bundle",
+            str(bundle),
+            "--input",
+            str(crops),
+            "--backbone-weights",
+            str(tmp_path / "missing.pth"),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert exit_code == 0
+    index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+    assert index["count"] == 2
+    for prediction_path in (output / "a.json", output / "b.json"):
+        payload = json.loads(prediction_path.read_text(encoding="utf-8"))
+        assert payload["research_only"] is True
+        assert payload["decision"]["status"] == "unknown"
 
 
 def test_inspect_bundle_cli_writes_json(tmp_path: Path) -> None:

@@ -154,7 +154,7 @@ def detailed_per_class_metrics(
     *,
     high_confidence_threshold: float = 0.90,
 ) -> list[dict[str, object]]:
-    predicted = _predictions(probabilities)
+    predicted = predictions_from_probabilities(probabilities)
     matrix = confusion_matrix(predicted, labels, len(class_names))
     rows: list[dict[str, object]] = []
     for class_id, class_name in enumerate(class_names):
@@ -242,7 +242,7 @@ def reliability_bin_rows(
 ) -> list[dict[str, float | int]]:
     _check_probability_inputs(probabilities, labels)
     confidences = [max(row) for row in probabilities]
-    predicted = _predictions(probabilities)
+    predicted = predictions_from_probabilities(probabilities)
     rows: list[dict[str, float | int]] = []
     for index, (low, high) in enumerate(_bin_edges(bins)):
         members = [
@@ -276,7 +276,7 @@ def coverage_accuracy_rows(
     class_names: list[str],
     policy: UncertaintyPolicy,
 ) -> list[dict[str, object]]:
-    predicted = _predictions(probabilities)
+    predicted = predictions_from_probabilities(probabilities)
     decisions = [decide_prediction(row, class_names, policy) for row in probabilities]
     rows: list[dict[str, object]] = []
     total = len(labels)
@@ -298,8 +298,13 @@ def coverage_accuracy_rows(
     return rows
 
 
-def _predictions(probabilities: list[list[float]]) -> list[int]:
+def predictions_from_probabilities(probabilities: list[list[float]]) -> list[int]:
+    """Argmax predictions shared by evaluation and reporting seams."""
     return [max(range(len(row)), key=row.__getitem__) for row in probabilities]
+
+
+def _predictions(probabilities: list[list[float]]) -> list[int]:
+    return predictions_from_probabilities(probabilities)
 
 
 def _mean(values: list[float]) -> float | None:

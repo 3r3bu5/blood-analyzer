@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from bloodfilm.classification.bundle import load_bundle_documents
+from bloodfilm.classification.bundle import load_bundle_documents, verify_backbone_checksum
 from bloodfilm.classification.dinobloom import (
     extract_backbone_embedding,
     load_dinobloom_b_backbone,
@@ -13,7 +13,6 @@ from bloodfilm.classification.heads import build_head
 from bloodfilm.classification.uncertainty import UncertaintyPolicy, decide_prediction
 from bloodfilm.errors import ConfigError, ModelLoadError
 from bloodfilm.ml import require_torch
-from bloodfilm.util import sha256_file
 
 
 def classify_probabilities(
@@ -63,11 +62,7 @@ def classify_crop(
     policy = UncertaintyPolicy(**documents["thresholds"])
 
     torch = require_torch("Classifier inference", ModelLoadError)
-    expected_backbone_sha = str(bundle.get("backbone_sha256", ""))
-    if expected_backbone_sha and Path(backbone_weights).exists():
-        actual_backbone_sha = sha256_file(backbone_weights)
-        if actual_backbone_sha != expected_backbone_sha:
-            raise ModelLoadError("DinoBloom-B backbone checksum does not match bundle metadata")
+    verify_backbone_checksum(bundle, backbone_weights)
     model = load_dinobloom_b_backbone(backbone_weights, device=device)
     head = build_head(str(bundle["head"]), len(class_names))
     checkpoint = torch.load(

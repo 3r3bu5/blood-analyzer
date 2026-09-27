@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from bloodfilm.classification.uncertainty import UncertaintyPolicy
@@ -78,3 +80,88 @@ def test_parity_report_accepts_ok_evidence(tmp_path) -> None:
 
     assert parity_report(evidence)["status"] == "ok"
     assert parity_report(None)["status"] == "blocked"
+
+
+def _acceptance_inputs(**overrides):
+    from bloodfilm.schemas import MLL23_CANONICAL_CLASSES
+
+    base = {
+        "artifact_report": {"status": "ok"},
+        "split_report": {
+            "status": "ok",
+            "leakage": {
+                "leaking_group_count": 0,
+                "leakage_free": None,
+                "grouping_status": "unverified_image_level_surrogate",
+            },
+        },
+        "protocol_report": {
+            "status": "ok",
+            "temperature_fit_split": "validation",
+            "final_test_evaluation": {"status": "ok"},
+        },
+        "uncertainty_report": {
+            "status": "configured",
+            "policy": {"min_accept_confidence": 0.8},
+        },
+        "bundle_inspection": {
+            "status": "ok",
+            "bundle_dir": "models/mll23-dinobloom-b-mlp-v0.1",
+            "bundle": {
+                "num_classes": 18,
+                "preprocessing_sha256": "abc",
+            },
+            "taxonomy": {"class_names": list(MLL23_CANONICAL_CLASSES)},
+            "files": {},
+        },
+        "parity": {"status": "ok"},
+        "output_dir": Path("outputs/reports"),
+        "verification": {"pytest": "passed", "ruff": "passed", "mypy": "passed"},
+    }
+    base.update(overrides)
+    return base
+
+
+def test_acceptance_reports_limitations_without_hard_blockers() -> None:
+    from bloodfilm.classification.reports import acceptance_report
+
+    report = acceptance_report(**_acceptance_inputs())
+
+    assert report["status"] == "accepted_with_limitations"
+    assert "surrogate_grouping_unverified" in report["limitations"]
+
+
+def test_acceptance_blocks_on_leakage_temperature_and_verification() -> None:
+    from bloodfilm.classification.reports import acceptance_report
+
+    leaked = _acceptance_inputs()
+    leaked["split_report"] = {
+        "status": "ok",
+        "leakage": {"leaking_group_count": 2, "leakage_free": False},
+    }
+    assert "split_leakage" in acceptance_report(**leaked)["blockers"]
+
+    hot_temp = _acceptance_inputs()
+    hot_temp["protocol_report"] = {
+        "status": "ok",
+        "temperature_fit_split": "test",
+        "final_test_evaluation": {"status": "ok"},
+    }
+    assert "temperature_fit_on_test" in acceptance_report(**hot_temp)["blockers"]
+
+    no_verification = _acceptance_inputs()
+    no_verification["verification"] = None
+    assert "verification_missing" in acceptance_report(**no_verification)["blockers"]
+
+
+def test_evaluation_protocol_reports_threshold_provenance() -> None:
+    from bloodfilm.classification.reports import evaluation_protocol_report
+
+    report = evaluation_protocol_report(
+        {"selected": "mlp", "heads": {"mlp": {"eval_split": "validation"}}},
+        {"row_count": 1, "ok_count": 1, "skipped_count": 0, "device": "cpu"},
+        {"split": "test", "size": 1, "metrics": {}, "top2_accuracy": 1.0},
+    )
+
+    assert report["threshold_selection_split"] == "validation"
+    assert "assumed" in str(report["threshold_selection_provenance"])

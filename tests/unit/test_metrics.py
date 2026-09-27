@@ -29,6 +29,12 @@ def test_classification_report_matches_worked_example() -> None:
     assert per_class["c"]["f1"] == pytest.approx(1.0)
 
 
+def test_predictions_from_probabilities_argmaxes_rows() -> None:
+    from bloodfilm.evaluation.classifier import predictions_from_probabilities
+
+    assert predictions_from_probabilities([[0.1, 0.9], [0.8, 0.2]]) == [1, 0]
+
+
 def test_metrics_reject_mismatched_lengths() -> None:
     with pytest.raises(ValueError):
         classification_report([0, 1], [0], ["a", "b"])
