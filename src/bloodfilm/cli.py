@@ -73,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("name")
     audit.add_argument("--registry", type=Path, default=Path("configs/registry/assets.yaml"))
     audit.add_argument("--dataset-root", type=Path, default=None)
+    audit.add_argument("--format", choices=["auto", "mll23", "txl-pbc"], default="auto")
     audit.add_argument("--report-output", type=Path, required=True)
     audit.set_defaults(handler=_audit)
 
@@ -360,7 +361,13 @@ def _dinobloom_smoke_report(weight_path: Path, sample_image: Path | None) -> dic
 
 def _audit(args: argparse.Namespace) -> int:
     dataset_root = _resolve_dataset_root(args)
-    write_json(args.report_output, audit_dataset(dataset_root))
+    if args.format == "txl-pbc" or (args.format == "auto" and args.name.lower() == "txl-pbc"):
+        from bloodfilm.data.txl_pbc import audit_txl_pbc_dataset
+
+        report = audit_txl_pbc_dataset(dataset_root)
+    else:
+        report = audit_dataset(dataset_root)
+    write_json(args.report_output, report)
     print(args.report_output)
     return 0
 

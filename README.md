@@ -14,6 +14,7 @@ Implemented now:
 - linear, MLP, and cosine head training from cached embeddings
 - research-only classifier bundle packaging and inspection
 - single-crop and folder classification commands that fail clearly when weights or ML dependencies are absent
+- M3 prep seams for TXL-PBC YOLO audit, detector metrics, and field-level detector/classifier JSON orchestration
 
 Not implemented yet:
 
@@ -45,6 +46,7 @@ PYTHONPATH=src python3 -m bloodfilm.cli classifier package-bundle --checkpoint o
 PYTHONPATH=src python3 -m bloodfilm.cli classifier inspect-bundle --bundle models/mll23-dinobloom-b-mlp-v0.1 --output outputs/reports/mll23_bundle_inspection.json
 PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-crop --bundle models/mll23-dinobloom-b-mlp-v0.1 --image path/to/cell.tif --output outputs/predictions/cell.json
 PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-folder --bundle models/mll23-dinobloom-b-mlp-v0.1 --input path/to/crops --output outputs/predictions/
+PYTHONPATH=src python3 -m bloodfilm.cli dataset audit TXL-PBC --format txl-pbc --dataset-root data/raw/TXL-PBC --report-output outputs/reports/txl_pbc_audit.json
 ```
 
 Classifier inputs are single WBC crop images readable by Pillow. The production path converts
@@ -135,3 +137,19 @@ PY
 Do not claim an independent split until official patient/source grouping metadata has been inspected and recorded. Do not report test-set classifier metrics until the dedicated final test evaluation has been run in a Torch-capable environment and the resulting report is present.
 
 The committed `configs/mappings/mll23.yaml` fixes the canonical project class order, but its folder-label mappings are marked provisional until the downloaded release labels are inspected.
+
+## TXL-PBC Detector Prep
+
+TXL-PBC is not bundled. Before detector training, download or clone the official repository on the training runner, pin the commit, inspect `data.yaml`, and run the YOLO audit:
+
+```bash
+mkdir -p data/raw
+git clone https://github.com/lugan113/TXL-PBC_Dataset.git data/raw/TXL-PBC
+git -C data/raw/TXL-PBC rev-parse HEAD > data/manifests/txl_pbc_commit.txt
+PYTHONPATH=src python3 -m bloodfilm.cli dataset audit TXL-PBC \
+  --format txl-pbc \
+  --dataset-root data/raw/TXL-PBC \
+  --report-output outputs/reports/txl_pbc_audit.json
+```
+
+The audit verifies the YOLO class names, records the WBC class ID, counts images/labels/boxes, and flags malformed labels. Do not train until this report is present and reviewed. Detector threshold selection prioritizes WBC recall using `configs/detector_txl_pbc.yaml`; false crops are bounded by `max_false_positives_per_image` rather than silently suppressing low-confidence WBCs.
