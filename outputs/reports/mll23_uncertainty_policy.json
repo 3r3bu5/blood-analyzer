@@ -1,0 +1,35 @@
+{
+  "actions": {
+    "accepted": "High-confidence prediction; still research-only.",
+    "review_required": "Prediction requires human review before any downstream research use.",
+    "unknown": "Low-confidence crop is treated as outside supported classifier confidence."
+  },
+  "bundle_status": "ok",
+  "policy": {
+    "max_accept_entropy": null,
+    "min_accept_confidence": 0.8,
+    "min_accept_margin": 0.15,
+    "require_review_for_classes": [
+      "myeloblast",
+      "promyelocyte_atypical",
+      "lymphocyte_neoplastic_other"
+    ],
+    "unknown_below_confidence": 0.35
+  },
+  "selected_head": "mlp",
+  "status": "configured",
+  "validation_calibration": {
+    "accuracy": 0.9446891825746452,
+    "balanced_accuracy": 0.8301957384069351,
+    "checkpoint": "outputs/checkpoints/mlp.pt",
+    "ece_after": 0.005585149287944074,
+    "ece_before": 0.008286431828064844,
+    "epochs": 50,
+    "eval_size": 6129,
+    "eval_split": "validation",
+    "final_loss": 0.12383167445659637,
+    "macro_f1": 0.8368135120787129,
+    "temperature": 1.0779973268508911,
+    "top2_accuracy": 0.985478870941426
+  }
+}

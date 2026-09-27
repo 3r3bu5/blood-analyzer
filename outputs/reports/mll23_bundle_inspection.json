@@ -1,0 +1,109 @@
+{
+  "bundle": {
+    "backbone": "DinoBloom-B",
+    "backbone_expected_path": "models/backbones/dinobloom-b.pth",
+    "backbone_sha256": "fdd8e51fd9831858c96cb241a694dd9d64cc28941ec2a923f1fa1e9b5c610a3f",
+    "created_at": "2026-09-27T09:34:22.174436+00:00",
+    "dataset": {
+      "invalid_item_count": 37,
+      "invalid_manifest_sha256": "b28d3ba12d879c40e035e4bd98585d546aaa0d84fd9e717300a97715f97c10c0",
+      "manifest_sha256": "ef36aa0389dc151a7691136292c6c24460047e564e66b17601516700b16e097e",
+      "name": "MLL23",
+      "valid_image_count": 41621
+    },
+    "embedding_dim": 768,
+    "head": "mlp",
+    "head_architecture": "mlp",
+    "head_file": "head.pt",
+    "head_sha256": "0f831b99c161b10e87e0d7adb9e32e78b6d370c64793fce9b19bba09f6d4aefc",
+    "known_limitations": [
+      "Research-only artifact; not a diagnostic device.",
+      "MLL23 grouping uses image-level surrogate groups until official grouping metadata is available.",
+      "OOD and novelty behavior require external validation."
+    ],
+    "name": "mll23-dinobloom-b-mlp-v0.1",
+    "num_classes": 18,
+    "preprocessing_sha256": "3f9dba03b1e8dca04f52e275514e1bfb6099597fac137a5c29061009be0fbd91",
+    "research_only": true,
+    "schema_version": 1,
+    "software_versions": {
+      "python": "3.12.13"
+    },
+    "version": "0.1"
+  },
+  "bundle_dir": "models/mll23-dinobloom-b-mlp-v0.1",
+  "checksum_errors": [],
+  "files": {
+    "bundle.json": {
+      "exists": true,
+      "sha256": "b2d6401e10eabe68cb7fe3ed632b110eca599cd6981e3eb7ef472206e0a1da4f",
+      "size_bytes": 1237
+    },
+    "calibration.json": {
+      "exists": true,
+      "sha256": "a38e365ed4106a12413aa62147ff0fc3b7f12a5053007a7fb3571a6360a4991e",
+      "size_bytes": 75
+    },
+    "head.pt": {
+      "exists": true,
+      "sha256": "0f831b99c161b10e87e0d7adb9e32e78b6d370c64793fce9b19bba09f6d4aefc",
+      "size_bytes": 1621477
+    },
+    "metrics.json": {
+      "exists": true,
+      "sha256": "0e7811484b7413f6b18d8f82490b2ceecbaa2ad30ffddd066833686f006c943c",
+      "size_bytes": 6774
+    },
+    "model_card.md": {
+      "exists": true,
+      "sha256": "a76ce720af841bbf893b85d98a9f805a9e909f28403ebe892fc2fbe34bc9b474",
+      "size_bytes": 195
+    },
+    "preprocessing.json": {
+      "exists": true,
+      "sha256": "0a4b2eb5aef992d2ec5dab93564d439031f5735e468272c717267051d6817b88",
+      "size_bytes": 611
+    },
+    "sha256sums.txt": {
+      "exists": true,
+      "sha256": "1a64f278bcc37ba2129186258828f53094efc00be3dc73843788abac9a34b208",
+      "size_bytes": 641
+    },
+    "taxonomy.json": {
+      "exists": true,
+      "sha256": "b919757defc343fd7c0307a391a4d995c9c6cde892e5952cb3afa28eafd25c5c",
+      "size_bytes": 471
+    },
+    "thresholds.json": {
+      "exists": true,
+      "sha256": "fd0dc8376765d966d8188cb4a86aec0e734f15790dd06e13bbdd9ee737820944",
+      "size_bytes": 250
+    }
+  },
+  "missing_files": [],
+  "status": "ok",
+  "taxonomy": {
+    "class_count": 18,
+    "class_names": [
+      "basophil",
+      "eosinophil",
+      "neutrophil_band",
+      "neutrophil_segmented",
+      "monocyte",
+      "lymphocyte_typical",
+      "lymphocyte_reactive",
+      "lymphocyte_large_granular",
+      "lymphocyte_neoplastic_other",
+      "hairy_cell",
+      "plasma_cell",
+      "smudge_cell",
+      "myeloblast",
+      "promyelocyte",
+      "promyelocyte_atypical",
+      "myelocyte",
+      "metamyelocyte",
+      "normoblast"
+    ],
+    "schema_version": 1
+  }
+}

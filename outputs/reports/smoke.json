@@ -1,16 +1,63 @@
 {
   "config": "configs/base.yaml",
   "dinobloom_b": {
-    "blocker": "DinoBloom-B weights are not present. Download the selected artifact explicitly, record its license and SHA-256 in configs/registry/assets.yaml, then rerun smoke.",
-    "embedding_shape": null,
+    "blocker": null,
+    "embedding_shape": [
+      1,
+      768
+    ],
     "expected_embedding_dim": 768,
-    "status": "blocked",
+    "preprocessing": {
+      "colour_normalization": "none",
+      "crop_method": "none",
+      "input_size": 224,
+      "interpolation": "bilinear",
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "resize": [
+        224,
+        224
+      ],
+      "resize_method": "direct",
+      "rgb_conversion": true,
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    },
+    "status": "ok",
     "variant": "DinoBloom-B",
     "weight_path": "models/backbones/dinobloom-b.pth",
-    "weight_sha256": null
+    "weight_sha256": "fdd8e51fd9831858c96cb241a694dd9d64cc28941ec2a923f1fa1e9b5c610a3f"
   },
   "sample_image": {
-    "blocker": "No image supplied. Provide --image or place microscope fields under data/microscope_samples/raw_fields.",
-    "status": "blocked"
+    "path": "data/raw/MLL23/basophil/basophil/basophil_0001.TIF",
+    "quality": {
+      "bright_fraction": 0.015118634259259259,
+      "dark_fraction": 0.0,
+      "focus_score": 85.94531838481745,
+      "height": 288,
+      "mean_brightness": 173.129581404321,
+      "reasons": [
+        "width_below_minimum",
+        "height_below_minimum"
+      ],
+      "status": "unusable",
+      "thresholds": {
+        "max_bright_fraction": null,
+        "max_dark_fraction": null,
+        "max_mean_brightness": null,
+        "min_focus_score": null,
+        "min_height": 512,
+        "min_mean_brightness": null,
+        "min_width": 512
+      },
+      "width": 288
+    },
+    "status": "loaded"
   }
 }

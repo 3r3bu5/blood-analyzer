@@ -1,0 +1,45 @@
+{
+  "checkpoint": "outputs/checkpoints/mlp.pt",
+  "crops": [
+    {
+      "cosine_similarity": 1.0,
+      "image_path": "basophil/basophil/basophil_0001.TIF",
+      "label_index": 0,
+      "logits_match": true
+    },
+    {
+      "cosine_similarity": 1.0,
+      "image_path": "eosinophil/eosinophil/eosinophil_0001.TIF",
+      "label_index": 1,
+      "logits_match": true
+    },
+    {
+      "cosine_similarity": 1.0,
+      "image_path": "hairy_cell/hairy_cell/hairy_cell_0001.TIF",
+      "label_index": 9,
+      "logits_match": true
+    },
+    {
+      "cosine_similarity": 1.0,
+      "image_path": "lymphocyte/lymphocyte/lymphocyte_0001.TIF",
+      "label_index": 5,
+      "logits_match": true
+    },
+    {
+      "cosine_similarity": 1.0,
+      "image_path": "lymphocyte_large_granular/lymphocyte_large_granular/lymphocyte_large_granular_0001.TIF",
+      "label_index": 7,
+      "logits_match": true
+    }
+  ],
+  "crops_checked": 5,
+  "dataset_root": "data/raw/MLL23",
+  "embeddings": "data/embeddings/mll23_embeddings.pt",
+  "min_cosine_similarity": 1.0,
+  "required_tolerance": {
+    "embedding_cosine_similarity": 0.9999,
+    "logits_allclose": "1e-4"
+  },
+  "status": "ok",
+  "weights": "models/backbones/dinobloom-b.pth"
+}

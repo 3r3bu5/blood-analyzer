@@ -1,0 +1,41 @@
+{
+  "artifacts": {
+    "configs/classifier_uncertainty.yaml": {
+      "exists": true,
+      "sha256": "418d13832ead552295cf4c57d5135807bd18a52c5f12132ceaccabfdc4ea0f5e",
+      "size_bytes": 251
+    },
+    "data/manifests/mll23_invalid.csv": {
+      "exists": true,
+      "sha256": "c9111fd4b9ebecd660a114b8b857c45d5910c5f2871c8d3b56a6b69ebe402db9",
+      "size_bytes": 2391
+    },
+    "data/manifests/mll23_manifest.csv": {
+      "exists": true,
+      "sha256": "ef36aa0389dc151a7691136292c6c24460047e564e66b17601516700b16e097e",
+      "size_bytes": 12413038
+    },
+    "data/manifests/mll23_splits.csv": {
+      "exists": true,
+      "sha256": "0ac079830fee856a8563e27536384f0d71810a53283849d90ebbebafff5cc05d",
+      "size_bytes": 8898436
+    },
+    "outputs/reports/mll23_bundle_inspection.json": {
+      "exists": true,
+      "sha256": "1dd87dd17329a96e9a7764e2248e20faf313de1efb03960178af56d6ce0ac85a",
+      "size_bytes": 3430
+    },
+    "outputs/reports/mll23_embeddings.json": {
+      "exists": true,
+      "sha256": "18a5ae9703bd8bb2a20c5bc58c1b79da6e9bddf476da1ac5429b34b93348e7ff",
+      "size_bytes": 415
+    },
+    "outputs/reports/mll23_head_comparison.json": {
+      "exists": true,
+      "sha256": "9da2194d9abd2d65734165d400b1955c80ec285f5b98b3ed17f01ce3b4579fb0",
+      "size_bytes": 1804
+    }
+  },
+  "missing": [],
+  "status": "ok"
+}

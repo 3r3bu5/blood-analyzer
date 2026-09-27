@@ -1,0 +1,52 @@
+{
+  "config": "configs/classifier_mll23.yaml",
+  "embeddings": "data/embeddings/mll23_embeddings.pt",
+  "heads": {
+    "cosine": {
+      "accuracy": 0.12693751019742208,
+      "balanced_accuracy": 0.10899292370777675,
+      "checkpoint": "outputs/checkpoints/cosine.pt",
+      "ece_after": 0.007953873699505731,
+      "ece_before": 0.026490361630177487,
+      "epochs": 50,
+      "eval_size": 6129,
+      "eval_split": "validation",
+      "final_loss": 2.800467014312744,
+      "macro_f1": 0.09782624470134435,
+      "temperature": 0.7550975680351257,
+      "top2_accuracy": 0.22124326970141947
+    },
+    "linear": {
+      "accuracy": 0.9344101811062163,
+      "balanced_accuracy": 0.810609011379333,
+      "checkpoint": "outputs/checkpoints/linear.pt",
+      "ece_after": 0.00894042747671136,
+      "ece_before": 0.042695725045831995,
+      "epochs": 50,
+      "eval_size": 6129,
+      "eval_split": "validation",
+      "final_loss": 0.22203153371810913,
+      "macro_f1": 0.8192797616646685,
+      "temperature": 0.7807745337486267,
+      "top2_accuracy": 0.9786262032958069
+    },
+    "mlp": {
+      "accuracy": 0.9446891825746452,
+      "balanced_accuracy": 0.8301957384069351,
+      "checkpoint": "outputs/checkpoints/mlp.pt",
+      "ece_after": 0.005585149287944074,
+      "ece_before": 0.008286431828064844,
+      "epochs": 50,
+      "eval_size": 6129,
+      "eval_split": "validation",
+      "final_loss": 0.12383167445659637,
+      "macro_f1": 0.8368135120787129,
+      "temperature": 1.0779973268508911,
+      "top2_accuracy": 0.985478870941426
+    }
+  },
+  "preprocessing_sha256": "3f9dba03b1e8dca04f52e275514e1bfb6099597fac137a5c29061009be0fbd91",
+  "selected": "mlp",
+  "selection_metric": "macro_f1",
+  "weight_sha256": "fdd8e51fd9831858c96cb241a694dd9d64cc28941ec2a923f1fa1e9b5c610a3f"
+}

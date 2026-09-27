@@ -1,0 +1,62 @@
+{
+  "python": "3.14.7",
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "torch": "unavailable: No module named 'torch'",
+  "cuda_available": false,
+  "git_commit": "2950c9e1a617d876990fe901ef518af2a30dd20c",
+  "preflight_commands": {
+    "pytest": "......s.s......ss.....ss..........s................s...........ss....... [ 96%]\n...                                                                      [100%]\n65 passed, 14 skipped in 1.23s\n",
+    "ruff": "All checks passed!\n",
+    "mypy_src": "Success: no issues found in 30 source files\n"
+  },
+  "artifacts": {
+    "data/embeddings/mll23_embeddings.pt": {
+      "exists": true,
+      "size_bytes": 135173032,
+      "sha256": "2bef2ee885a5f79e6efe83d895df36c62799152146517dc5af36ab928eecc815"
+    },
+    "outputs/checkpoints/mlp.pt": {
+      "exists": true,
+      "size_bytes": 1621477,
+      "sha256": "0f831b99c161b10e87e0d7adb9e32e78b6d370c64793fce9b19bba09f6d4aefc"
+    },
+    "outputs/checkpoints/linear.pt": {
+      "exists": true,
+      "size_bytes": 58077,
+      "sha256": "36e70e9ab13e839bc37ec4d7a55fa43697af0046c0d2b24cc74d4f01e6710869"
+    },
+    "outputs/checkpoints/cosine.pt": {
+      "exists": true,
+      "size_bytes": 58013,
+      "sha256": "02a00997ca93f4884e512c141762d825b18339c30305cb2428ac9a3a146f7475"
+    },
+    "data/manifests/mll23_manifest.csv": {
+      "exists": true,
+      "size_bytes": 12413038,
+      "sha256": "ef36aa0389dc151a7691136292c6c24460047e564e66b17601516700b16e097e"
+    },
+    "data/manifests/mll23_splits.csv": {
+      "exists": true,
+      "size_bytes": 8898436,
+      "sha256": "0ac079830fee856a8563e27536384f0d71810a53283849d90ebbebafff5cc05d"
+    },
+    "data/manifests/mll23_invalid.csv": {
+      "exists": true,
+      "size_bytes": 2391,
+      "sha256": "c9111fd4b9ebecd660a114b8b857c45d5910c5f2871c8d3b56a6b69ebe402db9"
+    },
+    "models/backbones/dinobloom-b.pth": {
+      "exists": false,
+      "size_bytes": null,
+      "sha256": null
+    },
+    "outputs/reports/mll23_head_comparison.json": {
+      "exists": true,
+      "size_bytes": 1804,
+      "sha256": "9da2194d9abd2d65734165d400b1955c80ec285f5b98b3ed17f01ce3b4579fb0"
+    }
+  },
+  "blockers": [
+    "missing models/backbones/dinobloom-b.pth"
+  ]
+}

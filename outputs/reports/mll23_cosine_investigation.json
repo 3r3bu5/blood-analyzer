@@ -1,0 +1,24 @@
+{
+  "cosine_validation": {
+    "accuracy": 0.12693751019742208,
+    "balanced_accuracy": 0.10899292370777675,
+    "checkpoint": "outputs/checkpoints/cosine.pt",
+    "ece_after": 0.007953873699505731,
+    "ece_before": 0.026490361630177487,
+    "epochs": 50,
+    "eval_size": 6129,
+    "eval_split": "validation",
+    "final_loss": 2.800467014312744,
+    "macro_f1": 0.09782624470134435,
+    "temperature": 0.7550975680351257,
+    "top2_accuracy": 0.22124326970141947
+  },
+  "linear_validation_macro_f1": 0.8192797616646685,
+  "mlp_validation_macro_f1": 0.8368135120787129,
+  "observations": [
+    "Cosine head underperformed linear and MLP on the same validation split.",
+    "No retraining or implementation change was made because no defect was isolated by a failing test.",
+    "Cosine remains an experimental peer rather than the packaged head."
+  ],
+  "status": "investigated_no_code_defect_confirmed"
+}

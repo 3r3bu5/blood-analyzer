@@ -1,0 +1,11 @@
+{
+  "cache": "data/embeddings/mll23_embeddings.pt",
+  "device": "cuda",
+  "ok_count": 41621,
+  "preprocessing_sha256": "3f9dba03b1e8dca04f52e275514e1bfb6099597fac137a5c29061009be0fbd91",
+  "row_count": 41621,
+  "skipped_count": 0,
+  "splits": "data/manifests/mll23_splits.csv",
+  "weight_sha256": "fdd8e51fd9831858c96cb241a694dd9d64cc28941ec2a923f1fa1e9b5c610a3f",
+  "weights": "models/backbones/dinobloom-b.pth"
+}

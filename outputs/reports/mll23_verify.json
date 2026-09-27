@@ -1,0 +1,79 @@
+{
+  "dataset": "MLL23",
+  "dest_dir": "data/raw/MLL23",
+  "files": [
+    {
+      "filename": "neutrophil_band.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "myelocyte.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "basophil.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "eosinophil.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "lymphocyte_large_granular.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "hairy_cell.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "lymphocyte_reactive.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "lymphocyte_neoplastic.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "metamyelocyte.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "monocyte.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "normoblast.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "neutrophil_segmented.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "plasma_cell.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "smudge_cell.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "promyelocyte_atypical.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "promyelocyte.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "lymphocyte.zip",
+      "status": "verified"
+    },
+    {
+      "filename": "myeloblast.zip",
+      "status": "verified"
+    }
+  ],
+  "status": "complete"
+}

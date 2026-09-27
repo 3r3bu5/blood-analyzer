@@ -1,0 +1,18 @@
+{
+  "after_calibration": {
+    "brier_score": 0.08120516027029664,
+    "expected_calibration_error": 0.00460535622147153,
+    "maximum_calibration_error": 0.2544979006052017,
+    "negative_log_likelihood": 0.16552889601331675
+  },
+  "before_calibration": {
+    "brier_score": 0.0813120007275856,
+    "expected_calibration_error": 0.006280473869334836,
+    "maximum_calibration_error": 0.2603997588157654,
+    "negative_log_likelihood": 0.1657948298433802
+  },
+  "final_evaluation_split": "test",
+  "note": "Calibration measures confidence alignment only; they do not establish correctness or OOD safety.",
+  "temperature": 1.0779973268508911,
+  "temperature_fit_split": "validation"
+}

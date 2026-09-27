@@ -1,0 +1,30 @@
+{
+  "class_distribution": {
+    "basophil": 616,
+    "eosinophil": 2448,
+    "hairy_cell": 3265,
+    "lymphocyte_large_granular": 1849,
+    "lymphocyte_neoplastic_other": 180,
+    "lymphocyte_reactive": 33,
+    "lymphocyte_typical": 5532,
+    "metamyelocyte": 483,
+    "monocyte": 2510,
+    "myeloblast": 8606,
+    "myelocyte": 747,
+    "neutrophil_band": 687,
+    "neutrophil_segmented": 7170,
+    "normoblast": 2071,
+    "plasma_cell": 1658,
+    "promyelocyte": 745,
+    "promyelocyte_atypical": 2033,
+    "smudge_cell": 988
+  },
+  "grouping_status": "unverified_image_level_surrogate",
+  "independence_claim": false,
+  "invalid_by_reason": {
+    "UNSUPPORTED_IMAGE_FORMAT": 37
+  },
+  "invalid_item_count": 37,
+  "leakage_note": "M0/M1 scaffold assigns one surrogate group per image until official MLL23 grouping metadata is available. Random image-level independence is not claimed.",
+  "valid_image_count": 41621
+}
