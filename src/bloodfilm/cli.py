@@ -187,6 +187,20 @@ def build_parser() -> argparse.ArgumentParser:
     detector_inspect.add_argument("--output", type=Path, default=None)
     detector_inspect.set_defaults(handler=_detector_inspect_bundle)
 
+    detector_sweep = detector_subcommands.add_parser(
+        "sweep", help="Sweep detector confidence thresholds over field images"
+    )
+    detector_sweep.add_argument("--weights", type=Path, required=True)
+    detector_sweep.add_argument("--input", type=Path, required=True)
+    detector_sweep.add_argument("--thresholds", type=str, default="0.05,0.10,0.15,0.25,0.35,0.50")
+    detector_sweep.add_argument("--iou", type=float, default=0.5)
+    detector_sweep.add_argument("--imgsz", type=int, default=640)
+    detector_sweep.add_argument("--labels", type=Path, default=None)
+    detector_sweep.add_argument("--target-recall", type=float, default=0.95)
+    detector_sweep.add_argument("--max-false-positives-per-image", type=float, default=2.0)
+    detector_sweep.add_argument("--report-output", type=Path, required=True)
+    detector_sweep.set_defaults(handler=_detector_sweep)
+
     embeddings = subcommands.add_parser("embeddings", help="Stage A embedding cache workflows")
     embeddings_subcommands = embeddings.add_subparsers(required=True)
 
@@ -514,6 +528,54 @@ def _detector_inspect_bundle(args: argparse.Namespace) -> int:
         print(args.output)
     else:
         print(json.dumps(report, indent=2, sort_keys=True))
+    return 0
+
+
+def _detector_sweep(args: argparse.Namespace) -> int:
+    from bloodfilm.detection.detector import Detection
+    from bloodfilm.detection.sweep import (
+        collect_images,
+        load_yolo_truth,
+        parse_thresholds,
+        run_prediction_sweep,
+        score_thresholds_with_truth,
+        write_sweep_report,
+    )
+
+    thresholds = parse_thresholds(args.thresholds)
+    images = collect_images(args.input)
+    report = run_prediction_sweep(
+        args.weights, images, thresholds, iou_threshold=args.iou, image_size=args.imgsz
+    )
+    if args.labels is not None:
+        # YOLO filtering is monotonic in confidence, so the lowest-threshold
+        # candidate holds the full prediction set for rescoring.
+        widest = min(report["candidates"], key=lambda row: row["confidence_threshold"])
+        full_predictions: dict[str, list[Detection]] = {
+            image_stem: [
+                Detection(
+                    x1=box["x1"],
+                    y1=box["y1"],
+                    x2=box["x2"],
+                    y2=box["y2"],
+                    score=box["score"],
+                    label="wbc_candidate",
+                )
+                for box in boxes
+            ]
+            for image_stem, boxes in widest["boxes_by_image"].items()
+        }
+        truth = load_yolo_truth(args.labels, images)
+        report["scoring"] = score_thresholds_with_truth(
+            full_predictions,
+            truth,
+            thresholds,
+            iou_threshold=args.iou,
+            target_recall=args.target_recall,
+            max_false_positives_per_image=args.max_false_positives_per_image,
+        )
+    write_sweep_report(report, args.report_output)
+    print(args.report_output)
     return 0
 
 

@@ -185,6 +185,16 @@ PYTHONPATH=src python3 -m bloodfilm.cli detector inspect-bundle \
   --output outputs/reports/txl_pbc_detector_bundle_inspection.json
 ```
 
+Sweep prediction-level confidence thresholds over field images (optionally with `--labels` pointing at YOLO txt ground truth for recall/precision scoring):
+
+```bash
+PYTHONPATH=src python3 -m bloodfilm.cli detector sweep \
+  --weights models/txl-pbc-yolo26n-v0.1/weights.pt \
+  --input data/microscope_samples/wbc.jpg \
+  --thresholds "0.05,0.10,0.15,0.25,0.35,0.50" \
+  --report-output outputs/reports/detector_sweep_microscope_wbc.json
+```
+
 The committed M3 bundle reports precision `0.999`, recall `1.0`, mAP50 `0.995`, mAP50-95 `0.886`, and zero missed WBC boxes on the TXL-PBC test split at confidence threshold `0.25`. These are dataset metrics only, not clinical validation.
 
 ## End-to-End Field Analysis

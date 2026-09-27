@@ -1,0 +1,120 @@
+{
+  "candidates": [
+    {
+      "boxes_by_image": {
+        "wbc2": [
+          {
+            "score": 0.8884516954421997,
+            "x1": 124.0306396484375,
+            "x2": 601.5850219726562,
+            "y1": 53.04966735839844,
+            "y2": 480.0
+          }
+        ]
+      },
+      "confidence_threshold": 0.05,
+      "detection_count": 1,
+      "detections_per_image": 1.0,
+      "image_count": 1,
+      "latency_ms": 3692.378
+    },
+    {
+      "boxes_by_image": {
+        "wbc2": [
+          {
+            "score": 0.8884516954421997,
+            "x1": 124.0306396484375,
+            "x2": 601.5850219726562,
+            "y1": 53.04966735839844,
+            "y2": 480.0
+          }
+        ]
+      },
+      "confidence_threshold": 0.1,
+      "detection_count": 1,
+      "detections_per_image": 1.0,
+      "image_count": 1,
+      "latency_ms": 145.042
+    },
+    {
+      "boxes_by_image": {
+        "wbc2": [
+          {
+            "score": 0.8884516954421997,
+            "x1": 124.0306396484375,
+            "x2": 601.5850219726562,
+            "y1": 53.04966735839844,
+            "y2": 480.0
+          }
+        ]
+      },
+      "confidence_threshold": 0.15,
+      "detection_count": 1,
+      "detections_per_image": 1.0,
+      "image_count": 1,
+      "latency_ms": 102.525
+    },
+    {
+      "boxes_by_image": {
+        "wbc2": [
+          {
+            "score": 0.8884516954421997,
+            "x1": 124.0306396484375,
+            "x2": 601.5850219726562,
+            "y1": 53.04966735839844,
+            "y2": 480.0
+          }
+        ]
+      },
+      "confidence_threshold": 0.25,
+      "detection_count": 1,
+      "detections_per_image": 1.0,
+      "image_count": 1,
+      "latency_ms": 112.93
+    },
+    {
+      "boxes_by_image": {
+        "wbc2": [
+          {
+            "score": 0.8884516954421997,
+            "x1": 124.0306396484375,
+            "x2": 601.5850219726562,
+            "y1": 53.04966735839844,
+            "y2": 480.0
+          }
+        ]
+      },
+      "confidence_threshold": 0.35,
+      "detection_count": 1,
+      "detections_per_image": 1.0,
+      "image_count": 1,
+      "latency_ms": 193.56
+    },
+    {
+      "boxes_by_image": {
+        "wbc2": [
+          {
+            "score": 0.8884516954421997,
+            "x1": 124.0306396484375,
+            "x2": 601.5850219726562,
+            "y1": 53.04966735839844,
+            "y2": 480.0
+          }
+        ]
+      },
+      "confidence_threshold": 0.5,
+      "detection_count": 1,
+      "detections_per_image": 1.0,
+      "image_count": 1,
+      "latency_ms": 122.622
+    }
+  ],
+  "image_size": 640,
+  "images": [
+    "data/microscope_samples/wbc2.jpeg"
+  ],
+  "iou_threshold": 0.5,
+  "research_only": true,
+  "status": "ok",
+  "weights": "models/txl-pbc-yolo26n-v0.1/weights.pt"
+}
