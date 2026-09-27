@@ -13,10 +13,19 @@ def test_load_asset_registry_accepts_repo_registry() -> None:
 
     assert registry["schema_version"] == 1
     assert registry["datasets"][0]["name"] == "MLL23"
-    assert {dataset["name"] for dataset in registry["datasets"]} == {"MLL23", "TXL-PBC"}
+    assert {dataset["name"] for dataset in registry["datasets"]} == {
+        "LeukemiaAttri",
+        "MLL23",
+        "TXL-PBC",
+    }
     txl_pbc = next(dataset for dataset in registry["datasets"] if dataset["name"] == "TXL-PBC")
     assert txl_pbc["source_url"] == "https://github.com/lugan113/TXL-PBC_Dataset"
     assert txl_pbc["local_path"] == "data/raw/TXL-PBC"
+    leukemia_attri = next(
+        dataset for dataset in registry["datasets"] if dataset["name"] == "LeukemiaAttri"
+    )
+    assert leukemia_attri["verification_state"] == "manual_download_required"
+    assert leukemia_attri["expected_archive_sha256"] is None
     assert registry["models"][0]["name"] == "DinoBloom-B"
 
 

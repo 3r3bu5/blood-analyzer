@@ -150,6 +150,45 @@
         "expected_format": "YOLO annotations with WBC/RBC/platelet labels",
         "note": "Resolve and pin a commit before download; verify data.yaml class IDs and file checksums before training."
       }
+    },
+    {
+      "name": "LeukemiaAttri",
+      "version": "MICCAI-2024:unverified_local_copy",
+      "source_url": "https://github.com/intelligentMachines-ITU/Blood-Cancer-Dataset-Lukemia-Attri-MICCAI-2024",
+      "project_urls": [
+        "https://github.com/intelligentMachines-ITU/LLD-Large-Leukemia-dataset-for-microscopic-imagery",
+        "https://im.itu.edu.pk/medicalai-bloodcancerdataset-2024/"
+      ],
+      "downloaded_at": null,
+      "license": "verify_before_use",
+      "license_url": null,
+      "citation": "Record official citation from source package before training.",
+      "purpose": [
+        "detector_training",
+        "detector_evaluation",
+        "multidomain_recovery"
+      ],
+      "local_archive": "data/archives/leukemia_attri_unverified.zip",
+      "local_path": "data/raw/LeukemiaAttri",
+      "extracted_path": "data/raw/LeukemiaAttri",
+      "expected_archive_sha256": null,
+      "checksum_manifest": "data/manifests/leukemia_attri_checksums.csv",
+      "label_mapping": "configs/mappings/leukemia_attri.yaml",
+      "annotation_format": "coco_or_extended_yolo_unverified",
+      "annotation_completeness": "fully_annotated_expected_verify_by_audit",
+      "verification_state": "manual_download_required",
+      "grouping_field": "patient_or_slide_when_available",
+      "files": [],
+      "acquisition": {
+        "manual_instructions": "Download from the official source after reviewing license/terms, place archive or extracted directory under data/raw/LeukemiaAttri, then run detector audit.",
+        "source_metadata_expected": [
+          "microscope",
+          "camera",
+          "magnification",
+          "annotation_format",
+          "class_names"
+        ]
+      }
     }
   ],
   "models": [

@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "model_version": "txl-pbc-yolo26n-v0.1",
+  "integration_status": "rejected_for_field_integration",
+  "reason": "target-domain localization and proposal-recall failure",
+  "threshold_sweep_effective": false,
+  "evidence_reports": [
+    "outputs/reports/detector_sweep_microscope_wbc.json",
+    "outputs/reports/detector_sweep_microscope_wbc2.json"
+  ],
+  "observations": {
+    "wbc.jpg": {
+      "visible_wbc_count": 7,
+      "detected_count": 5,
+      "observed_recall": 0.7142857143,
+      "stable_across_thresholds": true,
+      "thresholds_checked": [0.05, 0.1, 0.15, 0.25, 0.35, 0.5],
+      "missed_cells": "Two visually identified segmented-neutrophil-like cells were not proposed at any checked confidence threshold."
+    },
+    "wbc2.jpeg": {
+      "visible_wbc_count": 1,
+      "tight_wbc_detections": 0,
+      "field_sized_false_box": true,
+      "stable_across_thresholds": true,
+      "thresholds_checked": [0.05, 0.1, 0.15, 0.25, 0.35, 0.5]
+    }
+  },
+  "limitations": [
+    "Two manually inspected images are sufficient for a smoke-test failure but not for statistical performance estimation.",
+    "Manual visible-WBC counts are not IoU-reviewed ground truth boxes.",
+    "The current result must not be interpreted as clinical validation."
+  ],
+  "research_only": true
+}

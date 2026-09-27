@@ -1,0 +1,87 @@
+{
+  "project": {
+    "seed": 42,
+    "device": "auto",
+    "research_only": true
+  },
+  "detector": {
+    "implementation": "ultralytics_yolo",
+    "architecture": "yolo26n",
+    "image_size": 640,
+    "confidence_threshold": 0.10,
+    "iou_threshold": 0.50,
+    "global_nms_iou": 0.45,
+    "target_recall": 0.95,
+    "maximum_field_sized_false_boxes": 0,
+    "minimum_target_fields": 100
+  },
+  "training": {
+    "epochs": 100,
+    "batch_size": null,
+    "optimizer": "auto",
+    "learning_rate": null,
+    "early_stopping_patience": 20,
+    "checkpoint_policy": "best_validation_recall_then_map",
+    "augmentations": {
+      "brightness_contrast": "moderate",
+      "hue_saturation": "moderate",
+      "blur": "light",
+      "focus_variation": "light",
+      "scale_variation": true,
+      "rotation": "medically_reasonable",
+      "flips": true,
+      "compression_variation": true,
+      "mosaic": "review_before_use"
+    }
+  },
+  "datasets": {
+    "sources": [
+      "TXL-PBC",
+      "LeukemiaAttri",
+      "LISC_optional"
+    ],
+    "manifest": "data/manifests/detector_multidomain_manifest.csv",
+    "splits": "data/manifests/detector_multidomain_splits.csv",
+    "target_validation": "data/target_validation",
+    "exclude_locked_target_images_from_training": true,
+    "required_annotation_completeness": "fully_annotated"
+  },
+  "field_roi": {
+    "enabled": true,
+    "method": "auto",
+    "dark_threshold": 20,
+    "minimum_area_ratio": 0.30,
+    "padding_ratio": 0.02,
+    "fallback_to_full_image": true
+  },
+  "tiling": {
+    "enabled": true,
+    "tile_size": 512,
+    "overlap_ratio": 0.20,
+    "include_full_image_pass": true,
+    "edge_policy": "cover"
+  },
+  "box_sanity": {
+    "maximum_area_ratio": 0.35,
+    "minimum_area_ratio": 0.0001,
+    "maximum_aspect_ratio": 4.0,
+    "action": "review"
+  },
+  "experiments": {
+    "A_finetune_txl_pbc": {
+      "initial_weights": "models/txl-pbc-yolo26n-v0.1/weights.pt",
+      "purpose": "test whether multidomain fine-tuning recovers target-field proposal recall"
+    },
+    "B_clean_pretrained": {
+      "initial_weights": "yolo26n.pt",
+      "purpose": "test whether TXL-PBC pretraining learned harmful shortcuts"
+    }
+  },
+  "outputs": {
+    "run_root": "outputs/detector_multidomain",
+    "preparation_report": "outputs/reports/detector_multidomain_preparation.json",
+    "leakage_report": "outputs/reports/detector_multidomain_leakage.json",
+    "evaluation_report": "outputs/reports/detector_multidomain_evaluation.json",
+    "target_smoke_report": "outputs/reports/detector_target_smoke.json"
+  }
+}

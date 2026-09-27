@@ -164,6 +164,34 @@ def build_parser() -> argparse.ArgumentParser:
     detector_prepare.add_argument("--report-output", type=Path, required=True)
     detector_prepare.set_defaults(handler=_detector_prepare_yolo)
 
+    detector_preprocess = detector_subcommands.add_parser(
+        "preprocess", help="Detect microscope-field ROI preprocessing metadata"
+    )
+    detector_preprocess.add_argument("--input", type=Path, required=True)
+    detector_preprocess.add_argument("--dark-threshold", type=int, default=20)
+    detector_preprocess.add_argument("--minimum-area-ratio", type=float, default=0.30)
+    detector_preprocess.add_argument("--padding-ratio", type=float, default=0.02)
+    detector_preprocess.add_argument("--report-output", type=Path, required=True)
+    detector_preprocess.set_defaults(handler=_detector_preprocess)
+
+    detector_audit = detector_subcommands.add_parser(
+        "audit", help="Audit detector annotation directories"
+    )
+    detector_audit.add_argument(
+        "--format", choices=["leukemia-attri-yolo", "standard-yolo"], required=True
+    )
+    detector_audit.add_argument("--image-root", type=Path, required=True)
+    detector_audit.add_argument("--label-root", type=Path, required=True)
+    detector_audit.add_argument("--class-names", action="append", default=[])
+    detector_audit.add_argument("--class-mapping", action="append", default=[])
+    detector_audit.add_argument(
+        "--annotation-completeness",
+        choices=["fully_annotated", "sparsely_annotated", "unknown"],
+        default="fully_annotated",
+    )
+    detector_audit.add_argument("--report-output", type=Path, required=True)
+    detector_audit.set_defaults(handler=_detector_audit)
+
     detector_package = detector_subcommands.add_parser(
         "package-bundle", help="Package trained detector weights and reports"
     )
@@ -193,6 +221,11 @@ def build_parser() -> argparse.ArgumentParser:
     detector_sweep.add_argument("--weights", type=Path, required=True)
     detector_sweep.add_argument("--input", type=Path, required=True)
     detector_sweep.add_argument("--thresholds", type=str, default="0.05,0.10,0.15,0.25,0.35,0.50")
+    detector_sweep.add_argument(
+        "--mode",
+        choices=["full_field", "field_roi", "tiled", "field_roi_tiled"],
+        default="full_field",
+    )
     detector_sweep.add_argument("--iou", type=float, default=0.5)
     detector_sweep.add_argument("--imgsz", type=int, default=640)
     detector_sweep.add_argument("--labels", type=Path, default=None)
@@ -503,6 +536,42 @@ def _detector_prepare_yolo(args: argparse.Namespace) -> int:
     return 0
 
 
+def _detector_preprocess(args: argparse.Namespace) -> int:
+    from bloodfilm.detection.roi import detect_field_roi
+
+    roi = detect_field_roi(
+        args.input,
+        dark_threshold=args.dark_threshold,
+        minimum_area_ratio=args.minimum_area_ratio,
+        padding_ratio=args.padding_ratio,
+    )
+    report = {
+        "schema_version": 1,
+        "research_only": True,
+        "input": str(args.input),
+        "roi": roi.to_dict(),
+    }
+    write_json(args.report_output, report)
+    print(args.report_output)
+    return 0
+
+
+def _detector_audit(args: argparse.Namespace) -> int:
+    from bloodfilm.detection.annotations import audit_yolo_directory
+
+    report = audit_yolo_directory(
+        image_root=args.image_root,
+        label_root=args.label_root,
+        class_names=_parse_int_mapping(args.class_names),
+        class_mapping=_parse_str_mapping(args.class_mapping),
+        annotation_completeness=args.annotation_completeness,
+    )
+    report["format"] = args.format
+    write_json(args.report_output, report)
+    print(args.report_output)
+    return 0
+
+
 def _detector_package_bundle(args: argparse.Namespace) -> int:
     from bloodfilm.detection.bundle import write_detector_bundle
 
@@ -547,6 +616,7 @@ def _detector_sweep(args: argparse.Namespace) -> int:
     report = run_prediction_sweep(
         args.weights, images, thresholds, iou_threshold=args.iou, image_size=args.imgsz
     )
+    report["preprocessing_mode"] = args.mode
     if args.labels is not None:
         # YOLO filtering is monotonic in confidence, so the lowest-threshold
         # candidate holds the full prediction set for rescoring.
@@ -577,6 +647,26 @@ def _detector_sweep(args: argparse.Namespace) -> int:
     write_sweep_report(report, args.report_output)
     print(args.report_output)
     return 0
+
+
+def _parse_str_mapping(values: list[str]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for value in values:
+        if "=" not in value:
+            raise ConfigError(f"Expected KEY=VALUE mapping, got {value!r}")
+        key, mapped = value.split("=", 1)
+        mapping[key] = mapped
+    return mapping
+
+
+def _parse_int_mapping(values: list[str]) -> dict[int, str]:
+    parsed: dict[int, str] = {}
+    for key, value in _parse_str_mapping(values).items():
+        try:
+            parsed[int(key)] = value
+        except ValueError as exc:
+            raise ConfigError(f"Expected integer mapping key, got {key!r}") from exc
+    return parsed
 
 
 def _train_classifier(args: argparse.Namespace) -> int:
