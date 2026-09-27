@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import math
 from typing import Any
+
+from bloodfilm.classification.uncertainty import UncertaintyPolicy, decide_prediction
 
 
 def confusion_matrix(predicted: list[int], labels: list[int], num_classes: int) -> list[list[int]]:
@@ -52,6 +55,8 @@ def classification_report(
         if labels
         else 0.0,
         "balanced_accuracy": sum(recalls) / num_classes if num_classes else 0.0,
+        "macro_precision": sum(precisions) / num_classes if num_classes else 0.0,
+        "macro_recall": sum(recalls) / num_classes if num_classes else 0.0,
         "macro_f1": sum(f1s) / num_classes if num_classes else 0.0,
         "weighted_f1": sum(score * count for score, count in zip(f1s, supports)) / total
         if total
@@ -99,9 +104,7 @@ def expected_calibration_error(
         ]
         if not members:
             continue
-        accuracy = sum(1 for index in members if predictions[index] == labels[index]) / len(
-            members
-        )
+        accuracy = sum(1 for index in members if predictions[index] == labels[index]) / len(members)
         confidence = sum(confidences[index] for index in members) / len(members)
         error += len(members) / len(labels) * abs(accuracy - confidence)
     return error
@@ -142,3 +145,172 @@ def top_k_accuracy(logits: Any, labels: Any, k: int) -> float:
     top = logits.topk(min(k, logits.shape[1]), dim=1).indices
     hits = sum(1 for row, truth in zip(top.tolist(), labels.tolist()) if int(truth) in row)
     return hits / len(labels)
+
+
+def detailed_per_class_metrics(
+    probabilities: list[list[float]],
+    labels: list[int],
+    class_names: list[str],
+    *,
+    high_confidence_threshold: float = 0.90,
+) -> list[dict[str, object]]:
+    predicted = _predictions(probabilities)
+    matrix = confusion_matrix(predicted, labels, len(class_names))
+    rows: list[dict[str, object]] = []
+    for class_id, class_name in enumerate(class_names):
+        support = sum(matrix[class_id])
+        predicted_as = sum(row[class_id] for row in matrix)
+        true_positives = matrix[class_id][class_id]
+        false_positives = predicted_as - true_positives
+        false_negatives = support - true_positives
+        precision = true_positives / predicted_as if predicted_as else 0.0
+        recall = true_positives / support if support else 0.0
+        incorrect_confusions = [
+            (other_id, count)
+            for other_id, count in enumerate(matrix[class_id])
+            if other_id != class_id and count > 0
+        ]
+        most_confused = max(incorrect_confusions, key=lambda item: item[1], default=None)
+        correct_conf = [
+            probabilities[index][class_id]
+            for index, truth in enumerate(labels)
+            if truth == class_id and predicted[index] == class_id
+        ]
+        incorrect_conf = [
+            max(probabilities[index])
+            for index, truth in enumerate(labels)
+            if truth == class_id and predicted[index] != class_id
+        ]
+        high_conf_errors = sum(
+            1
+            for index, truth in enumerate(labels)
+            if truth == class_id
+            and predicted[index] != class_id
+            and max(probabilities[index]) >= high_confidence_threshold
+        )
+        rows.append(
+            {
+                "class_id": class_id,
+                "class_code": class_name,
+                "support": support,
+                "precision": precision,
+                "recall": recall,
+                "f1": _f1(precision, recall),
+                "true_positives": true_positives,
+                "false_positives": false_positives,
+                "false_negatives": false_negatives,
+                "most_frequent_confusion_class": class_names[most_confused[0]]
+                if most_confused
+                else None,
+                "most_frequent_confusion_count": most_confused[1] if most_confused else 0,
+                "mean_calibrated_confidence_correct": _mean(correct_conf),
+                "mean_calibrated_confidence_incorrect": _mean(incorrect_conf),
+                "high_confidence_error_count": high_conf_errors,
+                "limitation": "low_support" if support < 30 else "",
+            }
+        )
+    return rows
+
+
+def calibration_summary(
+    probabilities: list[list[float]], labels: list[int], *, bins: int = 15
+) -> dict[str, object]:
+    _check_probability_inputs(probabilities, labels)
+    reliability_bins = reliability_bin_rows(probabilities, labels, bins=bins)
+    ece = sum(row["weight"] * row["absolute_gap"] for row in reliability_bins)
+    mce = max((row["absolute_gap"] for row in reliability_bins), default=0.0)
+    nll = -sum(math.log(max(probabilities[i][label], 1e-12)) for i, label in enumerate(labels))
+    nll = nll / len(labels) if labels else 0.0
+    brier = 0.0
+    if labels:
+        for row, truth in zip(probabilities, labels):
+            brier += sum(
+                (prob - (1.0 if index == truth else 0.0)) ** 2 for index, prob in enumerate(row)
+            )
+        brier /= len(labels)
+    return {
+        "expected_calibration_error": ece,
+        "maximum_calibration_error": mce,
+        "negative_log_likelihood": nll,
+        "brier_score": brier,
+        "reliability_bins": reliability_bins,
+    }
+
+
+def reliability_bin_rows(
+    probabilities: list[list[float]], labels: list[int], *, bins: int = 15
+) -> list[dict[str, float | int]]:
+    _check_probability_inputs(probabilities, labels)
+    confidences = [max(row) for row in probabilities]
+    predicted = _predictions(probabilities)
+    rows: list[dict[str, float | int]] = []
+    for index, (low, high) in enumerate(_bin_edges(bins)):
+        members = [
+            item
+            for item, confidence in enumerate(confidences)
+            if (low < confidence <= high) or (low == 0.0 and confidence == 0.0)
+        ]
+        count = len(members)
+        accuracy = (
+            sum(1 for item in members if predicted[item] == labels[item]) / count if count else 0.0
+        )
+        confidence = sum(confidences[item] for item in members) / count if count else 0.0
+        rows.append(
+            {
+                "bin_index": index,
+                "low": low,
+                "high": high,
+                "count": count,
+                "accuracy": accuracy,
+                "confidence": confidence,
+                "absolute_gap": abs(accuracy - confidence),
+                "weight": count / len(labels) if labels else 0.0,
+            }
+        )
+    return rows
+
+
+def coverage_accuracy_rows(
+    probabilities: list[list[float]],
+    labels: list[int],
+    class_names: list[str],
+    policy: UncertaintyPolicy,
+) -> list[dict[str, object]]:
+    predicted = _predictions(probabilities)
+    decisions = [decide_prediction(row, class_names, policy) for row in probabilities]
+    rows: list[dict[str, object]] = []
+    total = len(labels)
+    for status in ("accepted", "review_required", "unknown"):
+        indices = [index for index, decision in enumerate(decisions) if decision.status == status]
+        correct = sum(1 for index in indices if predicted[index] == labels[index])
+        errors = sum(1 for index in indices if predicted[index] != labels[index])
+        total_errors = sum(1 for guess, truth in zip(predicted, labels) if guess != truth)
+        rows.append(
+            {
+                "status": status,
+                "count": len(indices),
+                "coverage": len(indices) / total if total else 0.0,
+                "accuracy": correct / len(indices) if indices else 0.0,
+                "error_count": errors,
+                "error_coverage": errors / total_errors if total_errors else 0.0,
+            }
+        )
+    return rows
+
+
+def _predictions(probabilities: list[list[float]]) -> list[int]:
+    return [max(range(len(row)), key=row.__getitem__) for row in probabilities]
+
+
+def _mean(values: list[float]) -> float | None:
+    return sum(values) / len(values) if values else None
+
+
+def _check_probability_inputs(probabilities: list[list[float]], labels: list[int]) -> None:
+    if len(probabilities) != len(labels):
+        raise ValueError("probabilities and labels must match")
+    if any(not row for row in probabilities):
+        raise ValueError("probability rows must not be empty")
+    for row, label in zip(probabilities, labels):
+        if not 0 <= label < len(row):
+            raise ValueError(f"label index {label} outside probability row width {len(row)}")

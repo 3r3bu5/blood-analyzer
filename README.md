@@ -47,6 +47,30 @@ PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-crop --bundle models
 PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-folder --bundle models/mll23-dinobloom-b-mlp-v0.1 --input path/to/crops --output outputs/predictions/
 ```
 
+Classifier inputs are single WBC crop images readable by Pillow. The production path converts
+to RGB, directly resizes to 224x224, applies the DinoBloom-B ImageNet normalization recipe,
+then runs the frozen DinoBloom-B backbone and packaged MLP head. Outputs are JSON with
+`research_only`, `bundle`, `image`, `decision`, `top_predictions`, and full per-class
+probabilities. `decision.status` is one of:
+
+- `accepted`: high-confidence research prediction, still not diagnostic
+- `review_required`: threshold, margin, entropy, or high-risk class requires review
+- `unknown`: confidence is too low or an error/unsupported input prevents classification
+
+Missing assets fail explicitly. For example, absent or checksum-mismatched DinoBloom-B weights
+return a non-zero CLI exit with a `MISSING_ASSET`, `MODEL_LOAD_ERROR`, or `CONFIG_ERROR` message.
+Folder inference writes one JSON per input and records per-file errors instead of silently
+forcing a class.
+
+Verification commands used for this milestone:
+
+```bash
+PYTHONPATH=src /tmp/opencode/ml-venv/bin/python -m pytest -q
+/tmp/opencode/typecheck-venv/bin/python -m ruff check .
+/tmp/opencode/typecheck-venv/bin/python -m mypy src
+make docker-config
+```
+
 The `data` command group remains as an alias of `dataset`. The `scripts/` wrappers
 (`audit_dataset.py`, `build_manifest.py`, `download_assets.py`) only parse arguments
 and call the `bloodfilm.data` package.

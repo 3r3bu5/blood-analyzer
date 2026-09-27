@@ -12,6 +12,7 @@ help:
 	@echo "  docker-build    build app and test images (INSTALL_ML=1 for ML extras)"
 	@echo "  docker-test     run the full pytest suite in a container"
 	@echo "  docker-config   validate the compose file"
+	@echo "  provision       provision this machine (MODE=minimal|full, default full)"
 
 test:
 	python3 -m pytest
@@ -33,8 +34,6 @@ assets-list:
 
 dataset-audit:
 	PYTHONPATH=src python3 -m bloodfilm.cli dataset audit mll23 --report-output outputs/reports/mll23_audit.json
-
-  @echo "  provision       provision this machine (MODE=minimal|full, default full)"
 
 provision:
 	bash scripts/provision_machine.sh "$(CURDIR)"

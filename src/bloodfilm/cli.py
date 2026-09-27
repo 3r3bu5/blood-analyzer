@@ -204,6 +204,12 @@ def build_parser() -> argparse.ArgumentParser:
     package_bundle.add_argument(
         "--bundle", type=Path, default=Path("models/mll23-dinobloom-b-mlp-v0.1")
     )
+    package_bundle.add_argument(
+        "--manifest", type=Path, default=Path("data/manifests/mll23_manifest.csv")
+    )
+    package_bundle.add_argument(
+        "--invalid-manifest", type=Path, default=Path("data/manifests/mll23_invalid.csv")
+    )
     package_bundle.set_defaults(handler=_classifier_package_bundle)
 
     validation_reports = classifier_subcommands.add_parser(
@@ -236,6 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--test-evaluation", type=Path, default=Path("outputs/reports/mll23_test_evaluation.json")
     )
     validation_reports.add_argument("--output-dir", type=Path, default=Path("outputs/reports"))
+    validation_reports.add_argument("--parity-evidence", type=Path, default=None)
     validation_reports.set_defaults(handler=_classifier_validation_reports)
 
     evaluate_cache = classifier_subcommands.add_parser(
@@ -247,6 +254,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate_cache.add_argument("--split", type=str, default="test", choices=["validation", "test"])
     evaluate_cache.add_argument("--output", type=Path, required=True)
+    evaluate_cache.add_argument("--artifacts-dir", type=Path, default=Path("outputs/reports"))
+    evaluate_cache.add_argument(
+        "--thresholds", type=Path, default=Path("configs/classifier_uncertainty.yaml")
+    )
     evaluate_cache.set_defaults(handler=_classifier_evaluate_cache)
 
     classify_crop = classifier_subcommands.add_parser(
@@ -591,6 +602,7 @@ def _classifier_package_bundle(args: argparse.Namespace) -> int:
         temperature=float(head_metrics["temperature"]),
         validation_metrics=metrics,
         uncertainty_policy=UncertaintyPolicy(**thresholds),
+        dataset_metadata=_dataset_metadata(args.manifest, args.invalid_manifest),
     )
     print(args.bundle)
     return 0
@@ -608,6 +620,7 @@ def _classifier_validation_reports(args: argparse.Namespace) -> int:
         bundle_inspection=args.bundle_inspection,
         thresholds=args.thresholds,
         test_evaluation=args.test_evaluation,
+        parity_evidence=args.parity_evidence,
         output_dir=args.output_dir,
     )
     for path in paths:
@@ -618,6 +631,9 @@ def _classifier_validation_reports(args: argparse.Namespace) -> int:
 def _classifier_evaluate_cache(args: argparse.Namespace) -> int:
     from bloodfilm.classification.embeddings import load_embedding_cache
     from bloodfilm.classification.heads import build_head
+    from bloodfilm.classification.reports import write_evaluation_artifacts
+    from bloodfilm.classification.uncertainty import UncertaintyPolicy
+    from bloodfilm.documents import load_config_document
     from bloodfilm.errors import InputNotFoundError
     from bloodfilm.evaluation.classifier import expected_calibration_error
     from bloodfilm.ml import require_torch
@@ -630,6 +646,11 @@ def _classifier_evaluate_cache(args: argparse.Namespace) -> int:
     torch = require_torch("Classifier cache evaluation")
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
     cache = load_embedding_cache(args.embeddings)
+    ok_entries = [entry for entry in cache.entries if entry.status == "ok"]
+    if tuple(cache.embeddings.shape) != (len(ok_entries), 768):
+        raise ConfigError("Embedding cache shape does not match ok entries and 768 dimensions")
+    if not bool(torch.isfinite(cache.embeddings).all()):
+        raise ConfigError("Embedding cache contains NaN or infinite values")
     head_name = str(checkpoint["head"])
     class_names = [str(name) for name in checkpoint["class_names"]]
     model = build_head(head_name, len(class_names))
@@ -637,7 +658,11 @@ def _classifier_evaluate_cache(args: argparse.Namespace) -> int:
     embeddings, labels = cache_split_tensors(cache, args.split)
     evaluation = evaluate_head(model, embeddings, labels, class_names)
     temperature = float(checkpoint.get("temperature", 1.0))
+    probabilities_before = torch.softmax(evaluation["logits"], dim=1).tolist()
     scaled = torch.softmax(evaluation["logits"] / temperature, dim=1).tolist()
+    split_entries = [entry for entry in ok_entries if entry.split == args.split]
+    if len(split_entries) != len(labels):
+        raise ConfigError("Embedding labels do not align with split entries")
     report = {
         "checkpoint": str(args.checkpoint),
         "embeddings": str(args.embeddings),
@@ -651,6 +676,19 @@ def _classifier_evaluate_cache(args: argparse.Namespace) -> int:
         "ece_after": expected_calibration_error(scaled, labels, bins=15),
     }
     write_json(args.output, report)
+    write_evaluation_artifacts(
+        output_dir=args.artifacts_dir,
+        class_names=class_names,
+        labels=labels,
+        image_ids=[entry.image_id for entry in split_entries],
+        image_paths=[entry.image_path for entry in split_entries],
+        probabilities_before=[[float(value) for value in row] for row in probabilities_before],
+        probabilities_after=[[float(value) for value in row] for row in scaled],
+        temperature=temperature,
+        evaluation_split=args.split,
+        temperature_fit_split=str(checkpoint.get("eval_split", "validation")),
+        uncertainty_policy=UncertaintyPolicy(**load_config_document(args.thresholds)),
+    )
     print(args.output)
     return 0
 
@@ -711,6 +749,24 @@ def _checkpoint_class_names(checkpoint: object) -> list[str]:
     if not raw:
         raise ConfigError("Checkpoint class_names must not be empty")
     return list(raw)
+
+
+def _dataset_metadata(manifest: Path, invalid_manifest: Path) -> dict[str, object]:
+    from bloodfilm.util import sha256_file
+
+    metadata: dict[str, object] = {"name": "MLL23"}
+    if manifest.exists():
+        metadata["valid_image_count"] = _csv_data_row_count(manifest)
+        metadata["manifest_sha256"] = sha256_file(manifest)
+    if invalid_manifest.exists():
+        metadata["invalid_item_count"] = _csv_data_row_count(invalid_manifest)
+        metadata["invalid_manifest_sha256"] = sha256_file(invalid_manifest)
+    return metadata
+
+
+def _csv_data_row_count(path: Path) -> int:
+    with path.open("r", encoding="utf-8") as handle:
+        return max(sum(1 for _ in handle) - 1, 0)
 
 
 def _resolve_device(args: argparse.Namespace) -> str:

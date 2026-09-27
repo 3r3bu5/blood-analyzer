@@ -49,6 +49,17 @@ def test_inspect_bundle_reports_missing_required_file(tmp_path: Path) -> None:
     assert "thresholds.json" in report["missing_files"]
 
 
+def test_inspect_bundle_reports_checksum_mismatch_as_invalid(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    _write_complete_bundle(bundle)
+    (bundle / "head.pt").write_bytes(b"tampered")
+
+    report = inspect_bundle(bundle)
+
+    assert report["status"] == "invalid"
+    assert report["checksum_errors"] != []
+
+
 def test_inspect_bundle_cli_writes_json(tmp_path: Path) -> None:
     bundle = tmp_path / "bundle"
     _write_complete_bundle(bundle)
@@ -87,6 +98,34 @@ def test_classify_crop_cli_reports_missing_backbone(tmp_path: Path) -> None:
             str(image),
             "--backbone-weights",
             str(tmp_path / "missing.pth"),
+            "--output",
+            str(tmp_path / "prediction.json"),
+        ]
+    )
+
+    assert exit_code == 2
+
+
+def test_classify_crop_cli_reports_wrong_backbone_checksum(tmp_path: Path) -> None:
+    from tests.helpers.png import write_rgb_png
+
+    bundle = tmp_path / "bundle"
+    _write_complete_bundle(bundle)
+    image = tmp_path / "cell.png"
+    weights = tmp_path / "wrong.pth"
+    weights.write_bytes(b"wrong")
+    write_rgb_png(image, 1, 1, [(255, 255, 255)])
+
+    exit_code = main(
+        [
+            "classifier",
+            "classify-crop",
+            "--bundle",
+            str(bundle),
+            "--image",
+            str(image),
+            "--backbone-weights",
+            str(weights),
             "--output",
             str(tmp_path / "prediction.json"),
         ]

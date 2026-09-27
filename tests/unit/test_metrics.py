@@ -34,6 +34,13 @@ def test_metrics_reject_mismatched_lengths() -> None:
         classification_report([0, 1], [0], ["a", "b"])
 
 
+def test_classification_report_includes_macro_precision_and_recall() -> None:
+    report = classification_report(PREDS, LABELS, ["a", "b", "c"])
+
+    assert report["macro_precision"] == pytest.approx((1.0 + 2 / 3 + 1.0) / 3)
+    assert report["macro_recall"] == pytest.approx((0.5 + 1.0 + 1.0) / 3)
+
+
 def test_expected_calibration_error_is_zero_for_matched_confidence() -> None:
     from bloodfilm.evaluation.classifier import expected_calibration_error
 
