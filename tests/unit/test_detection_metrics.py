@@ -1,5 +1,9 @@
 from bloodfilm.detection import Detection
-from bloodfilm.detection.metrics import evaluate_detections, select_confidence_threshold
+from bloodfilm.detection.metrics import (
+    evaluate_detections,
+    select_confidence_threshold,
+    threshold_selection_report,
+)
 
 
 def test_evaluate_detections_reports_recall_precision_and_map() -> None:
@@ -43,3 +47,15 @@ def test_select_confidence_threshold_prioritizes_recall_under_false_crop_budget(
 
     assert selection["confidence_threshold"] == 0.25
     assert selection["selection_reason"] == "meets_recall_and_false_crop_budget"
+
+
+def test_threshold_selection_report_records_candidates_and_objective() -> None:
+    report = threshold_selection_report(
+        [{"confidence_threshold": 0.25, "recall": 0.99, "false_positives_per_image": 1.0}],
+        target_recall=0.95,
+        max_false_positives_per_image=2.0,
+    )
+
+    assert report["primary_objective"] == "wbc_recall"
+    assert report["selected"]["confidence_threshold"] == 0.25
+    assert report["candidates"][0]["recall"] == 0.99

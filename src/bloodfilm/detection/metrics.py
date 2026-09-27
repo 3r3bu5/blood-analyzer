@@ -140,6 +140,26 @@ def select_confidence_threshold(
     return {**selected, "selection_reason": "best_available_recall"}
 
 
+def threshold_selection_report(
+    candidates: list[dict[str, float]],
+    *,
+    target_recall: float,
+    max_false_positives_per_image: float,
+) -> dict[str, Any]:
+    selection = select_confidence_threshold(
+        candidates,
+        target_recall=target_recall,
+        max_false_positives_per_image=max_false_positives_per_image,
+    )
+    return {
+        "primary_objective": "wbc_recall",
+        "target_recall": target_recall,
+        "max_false_positives_per_image": max_false_positives_per_image,
+        "selected": selection,
+        "candidates": sorted(candidates, key=lambda row: row["confidence_threshold"]),
+    }
+
+
 def _match_dataset(
     predictions_by_image: dict[str, list[Detection]],
     truth_by_image: dict[str, list[Detection]],

@@ -152,6 +152,41 @@ def build_parser() -> argparse.ArgumentParser:
     )
     train_classifier.set_defaults(handler=_train_classifier)
 
+    detector = subcommands.add_parser("detector", help="Detector dataset and bundle workflows")
+    detector_subcommands = detector.add_subparsers(required=True)
+
+    detector_prepare = detector_subcommands.add_parser(
+        "prepare-yolo", help="Create a WBC-only YOLO derivative from TXL-PBC"
+    )
+    detector_prepare.add_argument("--dataset-root", type=Path, required=True)
+    detector_prepare.add_argument("--output-root", type=Path, required=True)
+    detector_prepare.add_argument("--wbc-class-id", type=int, required=True)
+    detector_prepare.add_argument("--report-output", type=Path, required=True)
+    detector_prepare.set_defaults(handler=_detector_prepare_yolo)
+
+    detector_package = detector_subcommands.add_parser(
+        "package-bundle", help="Package trained detector weights and reports"
+    )
+    detector_package.add_argument("--weights", type=Path, required=True)
+    detector_package.add_argument(
+        "--config", type=Path, default=Path("configs/detector_txl_pbc.yaml")
+    )
+    detector_package.add_argument("--metrics", type=Path, required=True)
+    detector_package.add_argument("--thresholds", type=Path, required=True)
+    detector_package.add_argument("--audit-report", type=Path, required=True)
+    detector_package.add_argument(
+        "--bundle", type=Path, default=Path("models/txl-pbc-yolo26n-v0.1")
+    )
+    detector_package.add_argument("--name", type=str, default="txl-pbc-yolo26n-v0.1")
+    detector_package.set_defaults(handler=_detector_package_bundle)
+
+    detector_inspect = detector_subcommands.add_parser(
+        "inspect-bundle", help="Inspect a packaged detector bundle"
+    )
+    detector_inspect.add_argument("--bundle", type=Path, required=True)
+    detector_inspect.add_argument("--output", type=Path, default=None)
+    detector_inspect.set_defaults(handler=_detector_inspect_bundle)
+
     embeddings = subcommands.add_parser("embeddings", help="Stage A embedding cache workflows")
     embeddings_subcommands = embeddings.add_subparsers(required=True)
 
@@ -440,6 +475,45 @@ def _config_validate(args: argparse.Namespace) -> int:
         "seed": config.project.seed,
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
+    return 0
+
+
+def _detector_prepare_yolo(args: argparse.Namespace) -> int:
+    from bloodfilm.detection.dataset import prepare_wbc_yolo_dataset
+
+    report = prepare_wbc_yolo_dataset(
+        args.dataset_root, args.output_root, wbc_class_id=args.wbc_class_id
+    )
+    write_json(args.report_output, report)
+    print(args.report_output)
+    return 0
+
+
+def _detector_package_bundle(args: argparse.Namespace) -> int:
+    from bloodfilm.detection.bundle import write_detector_bundle
+
+    write_detector_bundle(
+        args.bundle,
+        weights=args.weights,
+        config=args.config,
+        metrics=args.metrics,
+        thresholds=args.thresholds,
+        audit_report=args.audit_report,
+        model_name=args.name,
+    )
+    print(args.bundle)
+    return 0
+
+
+def _detector_inspect_bundle(args: argparse.Namespace) -> int:
+    from bloodfilm.detection.bundle import inspect_detector_bundle
+
+    report = inspect_detector_bundle(args.bundle)
+    if args.output is not None:
+        write_json(args.output, report)
+        print(args.output)
+    else:
+        print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 
 

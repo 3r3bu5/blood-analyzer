@@ -153,3 +153,33 @@ PYTHONPATH=src python3 -m bloodfilm.cli dataset audit TXL-PBC \
 ```
 
 The audit verifies the YOLO class names, records the WBC class ID, counts images/labels/boxes, and flags malformed labels. Do not train until this report is present and reviewed. Detector threshold selection prioritizes WBC recall using `configs/detector_txl_pbc.yaml`; false crops are bounded by `max_false_positives_per_image` rather than silently suppressing low-confidence WBCs.
+
+After audit, prepare a WBC-only YOLO derivative and train/evaluate on Kaggle:
+
+```bash
+PYTHONPATH=src python3 -m bloodfilm.cli detector prepare-yolo \
+  --dataset-root data/raw/TXL-PBC/TXL-PBC \
+  --output-root data/detection/txl-pbc-wbc-yolo \
+  --wbc-class-id 0 \
+  --report-output outputs/reports/txl_pbc_wbc_yolo_derivative.json
+
+pip install ultralytics
+yolo detect train model=yolo26n.pt data=data/detection/txl-pbc-wbc-yolo/data.yaml imgsz=640 epochs=100 project=outputs/detector name=txl-pbc-yolo26n
+yolo detect val model=outputs/detector/txl-pbc-yolo26n/weights/best.pt data=data/detection/txl-pbc-wbc-yolo/data.yaml split=test imgsz=640 project=outputs/detector name=txl-pbc-yolo26n-test
+```
+
+Record YOLO's recall, precision, mAP50, mAP50-95, missed-WBC count/rate, false positives per image, and the selected confidence threshold in JSON reports, then package:
+
+```bash
+PYTHONPATH=src python3 -m bloodfilm.cli detector package-bundle \
+  --weights outputs/detector/txl-pbc-yolo26n/weights/best.pt \
+  --config configs/detector_txl_pbc.yaml \
+  --metrics outputs/reports/txl_pbc_detector_evaluation.json \
+  --thresholds outputs/reports/txl_pbc_detector_thresholds.json \
+  --audit-report outputs/reports/txl_pbc_audit.json \
+  --bundle models/txl-pbc-yolo26n-v0.1
+
+PYTHONPATH=src python3 -m bloodfilm.cli detector inspect-bundle \
+  --bundle models/txl-pbc-yolo26n-v0.1 \
+  --output outputs/reports/txl_pbc_detector_bundle_inspection.json
+```
