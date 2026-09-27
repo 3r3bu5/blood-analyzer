@@ -78,6 +78,18 @@ def test_probe_image_reads_tiff_header(tmp_path: Path) -> None:
     assert (metadata.width, metadata.height, metadata.mode) == (6, 3, "L")
 
 
+def test_png_extension_with_jpeg_payload_falls_back_to_pillow(tmp_path: Path) -> None:
+    pil = pytest.importorskip("PIL.Image", reason="mislabelled image fallback needs Pillow")
+    image_path = tmp_path / "field.png"
+    pil.new("RGB", (5, 7), color=(10, 20, 30)).save(image_path, format="JPEG")
+
+    metadata = probe_image(image_path)
+    image = load_image(image_path)
+
+    assert (metadata.width, metadata.height, metadata.mode) == (5, 7, "RGB")
+    assert (image.width, image.height, image.mode) == (5, 7, "RGB")
+
+
 def test_quality_marks_too_small_images_unusable() -> None:
     image = ImageData(
         path=Path("tiny.png"),

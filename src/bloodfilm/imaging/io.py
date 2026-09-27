@@ -31,7 +31,10 @@ def load_image(path: Path | str) -> ImageData:
     if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
         raise UnsupportedImageFormatError(f"Unsupported image extension: {suffix}")
     if suffix == ".png":
-        return _load_png(image_path)
+        try:
+            return _load_png(image_path)
+        except ImageDecodeError:
+            return _load_with_pillow(image_path)
     return _load_with_pillow(image_path)
 
 
@@ -52,23 +55,28 @@ def probe_image(path: Path | str) -> ImageMetadata:
     if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
         raise UnsupportedImageFormatError(f"Unsupported image extension: {suffix}")
     if suffix == ".png":
-        width, height, color_type = _read_png_header(image_path.read_bytes(), image_path)
-        return ImageMetadata(
-            path=image_path, width=width, height=height, mode=_PNG_MODES[color_type]
-        )
+        try:
+            width, height, color_type = _read_png_header(image_path.read_bytes(), image_path)
+            return ImageMetadata(
+                path=image_path, width=width, height=height, mode=_PNG_MODES[color_type]
+            )
+        except ImageDecodeError:
+            return _probe_with_pillow(image_path)
+    return _probe_with_pillow(image_path)
+
+
+def _probe_with_pillow(path: Path) -> ImageMetadata:
     try:
         from PIL import Image
     except ModuleNotFoundError as exc:
         raise ImageDecodeError(
-            f"Decoding {image_path.suffix} requires Pillow or OpenCV; install the ml extras"
+            f"Decoding {path.suffix} requires Pillow or OpenCV; install the ml extras"
         ) from exc
     try:
-        with Image.open(image_path) as image:
-            return ImageMetadata(
-                path=image_path, width=image.width, height=image.height, mode=image.mode
-            )
+        with Image.open(path) as image:
+            return ImageMetadata(path=path, width=image.width, height=image.height, mode=image.mode)
     except Exception as exc:
-        raise ImageDecodeError(f"Could not read image header: {image_path}") from exc
+        raise ImageDecodeError(f"Could not read image header: {path}") from exc
 
 
 def _load_with_pillow(path: Path) -> ImageData:
