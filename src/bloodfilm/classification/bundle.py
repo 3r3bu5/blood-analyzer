@@ -91,7 +91,10 @@ def write_bundle_metadata(
     )
     write_json(bundle / "thresholds.json", uncertainty_policy.to_dict())
     write_json(bundle / "metrics.json", validation_metrics)
-    (bundle / "model_card.md").write_text(_model_card(bundle_doc), encoding="utf-8")
+    (bundle / "model_card.md").write_text(
+        _model_card(bundle_doc, validation_metrics, uncertainty_policy, temperature),
+        encoding="utf-8",
+    )
     _write_sha256sums(bundle)
     return bundle
 
@@ -218,9 +221,61 @@ def _bundle_checksum_errors(bundle: Path) -> list[str]:
     return errors
 
 
-def _model_card(bundle_doc: dict[str, Any]) -> str:
+def _model_card(
+    bundle_doc: dict[str, Any],
+    validation_metrics: dict[str, Any],
+    uncertainty_policy: UncertaintyPolicy,
+    temperature: float,
+) -> str:
+    thresholds = uncertainty_policy.to_dict()
+    threshold_lines = "\n".join(f"- `{key}`: `{value}`" for key, value in thresholds.items())
+    metric_lines = "\n".join(
+        f"- `{key}`: `{value}`" for key, value in _flat_metrics(validation_metrics)
+    )
+    limitations = "\n".join(f"- {item}" for item in bundle_doc.get("known_limitations", []))
     return (
         f"# {bundle_doc['name']}\n\n"
         "Research-only WBC crop classifier bundle. This artifact is not a diagnostic device "
-        "and must not be used for clinical decision-making without independent validation.\n"
+        "and must not be used for clinical decision-making without independent validation.\n\n"
+        f"Backbone: {bundle_doc.get('backbone')} "
+        f"(`{bundle_doc.get('backbone_sha256', '')}`). "
+        f"Head: {bundle_doc.get('head')} over {bundle_doc.get('num_classes')} classes, "
+        f"embedding dim {bundle_doc.get('embedding_dim')}. "
+        f"Temperature scaling: `{temperature}` (fit on validation, applied at inference).\n\n"
+        "## Metrics\n\n"
+        f"{metric_lines}\n\n"
+        "## Uncertainty thresholds\n\n"
+        "Thresholds were chosen a priori as conservative defaults, frozen, then evaluated "
+        "on the held-out test split (see `mll23_coverage_accuracy.csv`). "
+        "They are loaded from `thresholds.json`, never hard-coded in inference.\n\n"
+        f"{threshold_lines}\n\n"
+        "Decisions: `accepted` (high-confidence research prediction), "
+        "`review_required` (threshold, margin, entropy, or high-risk class), "
+        "`unknown` (confidence too low or unsupported input).\n\n"
+        "## Known limitations\n\n"
+        f"{limitations}\n"
+        "- `lymphocyte_reactive` is insufficiently validated: test support is in the "
+        "single digits, so its precision/recall estimates are unreliable.\n\n"
+        "## Usage\n\n"
+        "```bash\n"
+        "bloodfilm classifier inspect-bundle "
+        f"--bundle {bundle_doc.get('name')}\n"
+        "bloodfilm classifier classify-crop "
+        f"--bundle {bundle_doc.get('name')} "
+        "--image path/to/cell.tif --output outputs/predictions/cell.json\n"
+        "```\n"
     )
+
+
+def _flat_metrics(metrics: dict[str, Any]) -> list[tuple[str, object]]:
+    rows: list[tuple[str, object]] = []
+    for key, value in metrics.items():
+        if isinstance(value, dict):
+            rows.extend(
+                (f"{key}.{nested_key}", nested_value)
+                for nested_key, nested_value in _flat_metrics(value)
+                if not isinstance(nested_value, (dict, list))
+            )
+        elif not isinstance(value, list):
+            rows.append((key, value))
+    return rows

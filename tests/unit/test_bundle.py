@@ -38,6 +38,20 @@ def test_inspect_bundle_reports_required_files_and_hashes(tmp_path: Path) -> Non
     assert len(report["files"]["head.pt"]["sha256"]) == 64
 
 
+def test_model_card_records_metrics_limitations_and_thresholds(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    _write_complete_bundle(bundle)
+
+    card = (bundle / "model_card.md").read_text(encoding="utf-8")
+
+    assert "research-only" in card.lower()
+    assert "1.1" in card
+    assert "lymphocyte_reactive" in card
+    assert "insufficiently validated" in card
+    assert "accepted" in card and "review_required" in card and "unknown" in card
+    assert "threshold" in card.lower()
+
+
 def test_inspect_bundle_reports_missing_required_file(tmp_path: Path) -> None:
     bundle = tmp_path / "bundle"
     _write_complete_bundle(bundle)
@@ -291,6 +305,12 @@ def test_parity_tolerances_match_canonical_values() -> None:
     assert parity_module.LOGITS_ATOL == 1e-4
     assert parity_module.LOGITS_RTOL == 1e-4
     assert parity_module.LOGITS_TOLERANCE_LABEL == "1e-4"
+
+
+def test_parity_live_defaults_to_all_mll23_classes() -> None:
+    from bloodfilm.classification import parity as parity_module
+
+    assert parity_module.DEFAULT_PARITY_CROPS == 18
 
 
 def test_validation_reports_cli_reports_missing_input_report(

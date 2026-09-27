@@ -26,6 +26,24 @@ def test_classify_probabilities_returns_ranked_research_only_payload() -> None:
     ]
 
 
+def test_classify_probabilities_returns_all_18_probabilities() -> None:
+    class_names = [f"class_{index}" for index in range(18)]
+    probabilities = [0.0] * 18
+    probabilities[17] = 1.0
+
+    result = classify_probabilities(
+        probabilities=probabilities,
+        class_names=class_names,
+        policy=UncertaintyPolicy(min_accept_confidence=0.80),
+        image_path=Path("cell.png"),
+        bundle_name="mll23-dinobloom-b-mlp-v0.1",
+    )
+
+    assert len(result["probabilities"]) == 18
+    assert [row["class_code"] for row in result["probabilities"]] == class_names
+    assert result["top_predictions"][0]["class_code"] == "class_17"
+
+
 def test_preprocess_crop_rejects_corrupt_image(tmp_path: Path) -> None:
     pytest.importorskip("PIL")
     pytest.importorskip("torchvision")

@@ -158,7 +158,7 @@ def write_evaluation_artifacts(
         _matrix_rows(_normalize_matrix(matrix), class_names),
     )
     paths.append(output_dir / "mll23_confusion_matrix_normalized.csv")
-    write_matrix_png(output_dir / "mll23_confusion_matrix.png", matrix)
+    write_matrix_png(output_dir / "mll23_confusion_matrix.png", matrix, class_names)
     paths.append(output_dir / "mll23_confusion_matrix.png")
     write_csv_rows(
         output_dir / "mll23_high_confidence_errors.csv",

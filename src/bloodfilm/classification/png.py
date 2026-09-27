@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import importlib
 import math
 import struct
 import zlib
 from pathlib import Path
+from typing import Any
 
 
-def write_matrix_png(path: Path, matrix: list[list[int]]) -> None:
+def write_matrix_png(
+    path: Path, matrix: list[list[int]], class_names: list[str] | None = None
+) -> None:
+    if class_names and _write_matplotlib_matrix(path, matrix, class_names):
+        return
     max_value = max((max(row) for row in matrix if row), default=1)
     pixels: list[tuple[int, int, int]] = []
     for row in matrix:
@@ -17,6 +23,8 @@ def write_matrix_png(path: Path, matrix: list[list[int]]) -> None:
 
 
 def write_reliability_png(path: Path, rows: list[dict[str, float | int]]) -> None:
+    if _write_matplotlib_reliability(path, rows):
+        return
     width = max(len(rows), 1)
     height = 50
     pixels = [(255, 255, 255)] * (width * height)
@@ -28,6 +36,55 @@ def write_reliability_png(path: Path, rows: list[dict[str, float | int]]) -> Non
         marker_y = max(0, height - confidence_height - 1)
         pixels[marker_y * width + x] = (200, 40, 40)
     write_rgb_png(path, width, height, pixels)
+
+
+def _write_matplotlib_matrix(path: Path, matrix: list[list[int]], class_names: list[str]) -> bool:
+    try:
+        matplotlib: Any = importlib.import_module("matplotlib")
+        matplotlib.use("Agg")
+        plt: Any = importlib.import_module("matplotlib.pyplot")
+    except (ImportError, RuntimeError):
+        return False
+
+    size = max(8.0, min(14.0, len(class_names) * 0.65))
+    figure, axis = plt.subplots(figsize=(size, size), dpi=150)
+    image = axis.imshow(matrix, cmap="Blues")
+    axis.set_title("MLL23 confusion matrix")
+    axis.set_xlabel("Predicted class")
+    axis.set_ylabel("True class")
+    axis.set_xticks(range(len(class_names)), class_names, rotation=90, fontsize=6)
+    axis.set_yticks(range(len(class_names)), class_names, fontsize=6)
+    figure.colorbar(image, ax=axis, fraction=0.046, pad=0.04, label="Count")
+    figure.tight_layout()
+    figure.savefig(path)
+    plt.close(figure)
+    return True
+
+
+def _write_matplotlib_reliability(path: Path, rows: list[dict[str, float | int]]) -> bool:
+    try:
+        matplotlib: Any = importlib.import_module("matplotlib")
+        matplotlib.use("Agg")
+        plt: Any = importlib.import_module("matplotlib.pyplot")
+    except (ImportError, RuntimeError):
+        return False
+
+    bins = [int(row["bin_index"]) for row in rows]
+    accuracy = [float(row["accuracy"]) for row in rows]
+    confidence = [float(row["confidence"]) for row in rows]
+    figure, axis = plt.subplots(figsize=(8, 4.5), dpi=150)
+    axis.bar(bins, accuracy, width=0.8, label="Accuracy", color="#4f9d69")
+    axis.plot(bins, confidence, marker="o", label="Mean confidence", color="#c43b3b")
+    axis.set_ylim(0, 1.0)
+    axis.set_title("MLL23 reliability by confidence bin")
+    axis.set_xlabel("Confidence bin")
+    axis.set_ylabel("Fraction")
+    axis.legend(loc="lower right")
+    axis.grid(axis="y", alpha=0.25)
+    figure.tight_layout()
+    figure.savefig(path)
+    plt.close(figure)
+    return True
 
 
 def write_rgb_png(path: Path, width: int, height: int, pixels: list[tuple[int, int, int]]) -> None:

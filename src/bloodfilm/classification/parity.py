@@ -9,6 +9,7 @@ EMBEDDING_COSINE_MIN = 0.9999
 LOGITS_ATOL = 1e-4
 LOGITS_RTOL = 1e-4
 LOGITS_TOLERANCE_LABEL = "1e-4"
+DEFAULT_PARITY_CROPS = 18
 
 
 def run_live_parity(
@@ -17,7 +18,7 @@ def run_live_parity(
     dataset_root: Path | str,
     cache_path: Path | str,
     checkpoint_path: Path | str,
-    max_crops: int = 5,
+    max_crops: int = DEFAULT_PARITY_CROPS,
     device: str = "cpu",
 ) -> dict[str, Any]:
     """Compare live backbone/head outputs against cached embeddings and logits.

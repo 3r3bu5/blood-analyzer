@@ -15,6 +15,7 @@ from bloodfilm.classification.dinobloom import (
 )
 from bloodfilm.classification.embeddings import build_embedding_cache, save_embedding_cache
 from bloodfilm.classification.heads import HEAD_NAMES
+from bloodfilm.classification.parity import DEFAULT_PARITY_CROPS
 from bloodfilm.config import load_config
 from bloodfilm.data import (
     audit_dataset,
@@ -272,7 +273,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--embeddings", type=Path, default=Path("data/embeddings/mll23_embeddings.pt")
     )
     parity_live.add_argument("--checkpoint", type=Path, default=Path("outputs/checkpoints/mlp.pt"))
-    parity_live.add_argument("--max-crops", type=int, default=5)
+    parity_live.add_argument("--max-crops", type=int, default=DEFAULT_PARITY_CROPS)
     parity_live.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     parity_live.add_argument("--output", type=Path, required=True)
     parity_live.set_defaults(handler=_classifier_parity_live)

@@ -129,6 +129,27 @@
         "zenodo_api": "https://zenodo.org/api/records/14277609",
         "note": "File entries recorded from Zenodo API record 14277609."
       }
+    },
+    {
+      "name": "TXL-PBC",
+      "version": "github:lugan113/TXL-PBC_Dataset@unresolved",
+      "source_url": "https://github.com/lugan113/TXL-PBC_Dataset",
+      "downloaded_at": null,
+      "license": "mit_repository_license_verify_constituent_image_rights",
+      "purpose": [
+        "detector_training",
+        "detector_evaluation"
+      ],
+      "local_path": "data/raw/TXL-PBC",
+      "checksum_manifest": "data/manifests/txl_pbc_checksums.csv",
+      "label_mapping": "configs/mappings/txl_pbc.yaml",
+      "grouping_field": "source_image_or_repository_split",
+      "files": [],
+      "acquisition": {
+        "repository": "https://github.com/lugan113/TXL-PBC_Dataset",
+        "expected_format": "YOLO annotations with WBC/RBC/platelet labels",
+        "note": "Resolve and pin a commit before download; verify data.yaml class IDs and file checksums before training."
+      }
     }
   ],
   "models": [

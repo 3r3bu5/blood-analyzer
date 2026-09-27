@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "dataset": "TXL-PBC",
+  "canonical_detection_label": "wbc_candidate",
+  "source_labels": {
+    "wbc": "wbc_candidate"
+  },
+  "notes": [
+    "Verify source class IDs from the downloaded data.yaml before preparing YOLO training data.",
+    "RBC and platelet labels are ignored for the first WBC-recall detector unless retained as negative/context annotations by the training adapter."
+  ]
+}
