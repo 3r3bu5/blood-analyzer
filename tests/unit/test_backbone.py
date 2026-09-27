@@ -13,6 +13,7 @@ from bloodfilm.classification.dinobloom import (
     TIMM_MODEL_ID,
     extract_backbone_embedding,
     load_dinobloom_b_backbone,
+    normalize_dinobloom_checkpoint,
     preprocess_crop,
     smoke_dinobloom_b,
 )
@@ -55,6 +56,23 @@ def test_load_backbone_requires_timm(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     with pytest.raises(ModelLoadError, match="timm"):
         load_dinobloom_b_backbone(weights)
+
+
+def test_normalize_dinobloom_checkpoint_extracts_zenodo_teacher_state() -> None:
+    state = {
+        "teacher": {
+            "backbone.cls_token": "cls",
+            "backbone.blocks.0.norm1.weight": "norm",
+            "dino_head.mlp.0.weight": "head",
+        }
+    }
+
+    normalized = normalize_dinobloom_checkpoint(state)
+
+    assert normalized == {
+        "cls_token": "cls",
+        "blocks.0.norm1.weight": "norm",
+    }
 
 
 def test_extract_embedding_asserts_expected_shape() -> None:

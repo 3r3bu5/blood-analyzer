@@ -15,6 +15,7 @@ TIMM_MODEL_ID = "vit_base_patch14_dinov2"
 TORCH_HUB_MODEL_ID = "dinov2_vitb14"
 BACKBONE_IMAGE_SIZE = 224
 ALLOWED_UNEXPECTED_KEYS = frozenset({"mask_token"})
+ZENODO_TEACHER_KEY_PREFIX = "backbone."
 
 PREPROCESSING = {
     "resize": [224, 224],
@@ -110,6 +111,20 @@ def _require_torch() -> Any:
     return require_torch("DinoBloom-B loading", ModelLoadError)
 
 
+def normalize_dinobloom_checkpoint(state: Any) -> Any:
+    """Return a timm-loadable state dict from supported DinoBloom-B checkpoints."""
+    if isinstance(state, dict) and set(state) == {"teacher"}:
+        teacher = state["teacher"]
+        if not isinstance(teacher, dict):
+            raise ModelLoadError("DinoBloom-B teacher checkpoint is not a state dict")
+        return {
+            key.removeprefix(ZENODO_TEACHER_KEY_PREFIX): value
+            for key, value in teacher.items()
+            if key.startswith(ZENODO_TEACHER_KEY_PREFIX)
+        }
+    return state
+
+
 def _smoke_through_backbone(
     path: Path, checksum: str, sample_image: Path | str
 ) -> DinoBloomSmokeResult:
@@ -156,7 +171,9 @@ def load_dinobloom_b_backbone(weight_path: Path | str, device: str = "cpu") -> A
         model = timm.create_model(
             TIMM_MODEL_ID, pretrained=False, num_classes=0, img_size=BACKBONE_IMAGE_SIZE
         )
-        state = torch.load(path, map_location="cpu", weights_only=True)
+        state = normalize_dinobloom_checkpoint(
+            torch.load(path, map_location="cpu", weights_only=True)
+        )
         missing, unexpected = model.load_state_dict(state, strict=False)
     except Exception as exc:
         raise ModelLoadError(f"DinoBloom-B weights are not loadable: {path}") from exc

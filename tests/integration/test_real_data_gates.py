@@ -1,5 +1,6 @@
 """Dataset-gated integration tests: skip (never fail) without real assets."""
 
+from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
@@ -34,6 +35,7 @@ def test_require_weights_missing_path_points_to_downloads() -> None:
     not (REPO_ROOT / "models" / "backbones" / "dinobloom-b.pth").exists(),
     reason="DinoBloom-B weights are not installed",
 )
+@pytest.mark.skipif(find_spec("torch") is None, reason="torch is not installed")
 def test_real_dinobloom_weights_are_accepted() -> None:
     from bloodfilm.classification.dinobloom import require_dinobloom_b_weights
 

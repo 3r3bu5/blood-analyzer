@@ -12,6 +12,8 @@ from bloodfilm.documents import load_config_document, write_json
 from bloodfilm.errors import ConfigError, InputNotFoundError, ModelLoadError
 from bloodfilm.util import sha256_file
 
+OFFICIAL_DINOBLOOM_B_SHA256 = "b1ea16884d1ac1331f9e2d80f730b1b72cab58c9d65cc8cc2ac7ec785a8213c7"
+
 REQUIRED_BUNDLE_FILES = (
     "head.pt",
     "bundle.json",
@@ -149,12 +151,17 @@ def verify_backbone_checksum(bundle_doc: dict[str, Any], backbone_weights: Path 
     actionable missing-asset error.
     """
     expected_backbone_sha = str(bundle_doc.get("backbone_sha256", ""))
+    accepted_shas = {
+        str(checksum)
+        for checksum in bundle_doc.get("accepted_backbone_sha256", [])
+        if isinstance(checksum, str)
+    }
+    if expected_backbone_sha:
+        accepted_shas.add(expected_backbone_sha)
+    if bundle_doc.get("backbone") == "DinoBloom-B":
+        accepted_shas.add(OFFICIAL_DINOBLOOM_B_SHA256)
     weights_path = Path(backbone_weights)
-    if (
-        expected_backbone_sha
-        and weights_path.exists()
-        and sha256_file(weights_path) != expected_backbone_sha
-    ):
+    if accepted_shas and weights_path.exists() and sha256_file(weights_path) not in accepted_shas:
         raise ModelLoadError("DinoBloom-B backbone checksum does not match bundle metadata")
 
 

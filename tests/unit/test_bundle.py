@@ -84,6 +84,34 @@ def test_verify_backbone_checksum_rejects_mismatch(tmp_path: Path) -> None:
         verify_backbone_checksum({"backbone_sha256": "f" * 64}, weights)
 
 
+def test_verify_backbone_checksum_accepts_declared_alternate(tmp_path: Path) -> None:
+    from bloodfilm.classification.bundle import verify_backbone_checksum
+    from bloodfilm.util import sha256_file
+
+    weights = tmp_path / "official.pth"
+    weights.write_bytes(b"official")
+
+    verify_backbone_checksum(
+        {"backbone_sha256": "f" * 64, "accepted_backbone_sha256": [sha256_file(weights)]},
+        weights,
+    )
+
+
+def test_verify_backbone_checksum_accepts_official_dinobloom_b_sha(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from bloodfilm.classification import bundle
+
+    weights = tmp_path / "DinoBloom-B.pth"
+    weights.write_bytes(b"official")
+    monkeypatch.setattr(bundle, "sha256_file", lambda _: bundle.OFFICIAL_DINOBLOOM_B_SHA256)
+
+    bundle.verify_backbone_checksum(
+        {"backbone": "DinoBloom-B", "backbone_sha256": "f" * 64},
+        weights,
+    )
+
+
 def test_inspect_bundle_reports_checksum_mismatch_as_invalid(tmp_path: Path) -> None:
     bundle = tmp_path / "bundle"
     _write_complete_bundle(bundle)
