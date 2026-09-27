@@ -5,8 +5,6 @@ from typing import Any
 
 import pytest
 
-torch = pytest.importorskip("torch")
-
 from bloodfilm.classification.embeddings import (
     EmbeddingCache,
     build_embedding_cache,
@@ -15,6 +13,8 @@ from bloodfilm.classification.embeddings import (
     save_embedding_cache,
 )
 from bloodfilm.schemas import MLL23_CANONICAL_CLASSES, ManifestRow, SplitRow
+
+torch = pytest.importorskip("torch")
 
 
 def _split_row(image_id: str, label: str, split: str = "train") -> SplitRow:
@@ -155,9 +155,7 @@ def test_build_cache_rejects_unsupported_device(tmp_path: Path) -> None:
         )
 
 
-@pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="needs a CUDA device"
-)
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA device")
 def test_build_cache_extracts_on_cuda(tmp_path: Path) -> None:
     def cuda_backbone(batch: object) -> object:
         assert isinstance(batch, torch.Tensor) and batch.is_cuda

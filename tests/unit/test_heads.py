@@ -1,9 +1,9 @@
 import pytest
 
-torch = pytest.importorskip("torch")
-
 from bloodfilm.classification.heads import build_head
 from bloodfilm.errors import ConfigError
+
+torch = pytest.importorskip("torch")
 
 
 def test_linear_head_maps_768_to_classes() -> None:

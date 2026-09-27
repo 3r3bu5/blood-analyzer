@@ -293,6 +293,38 @@ def test_parity_tolerances_match_canonical_values() -> None:
     assert parity_module.LOGITS_TOLERANCE_LABEL == "1e-4"
 
 
+def test_validation_reports_cli_reports_missing_input_report(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    exit_code = main(
+        [
+            "classifier",
+            "validation-reports",
+            "--manifest",
+            str(tmp_path / "missing.csv"),
+            "--splits",
+            str(tmp_path / "missing.csv"),
+            "--invalid-manifest",
+            str(tmp_path / "missing.csv"),
+            "--embeddings-report",
+            str(tmp_path / "missing.json"),
+            "--comparison-report",
+            str(tmp_path / "missing.json"),
+            "--bundle-inspection",
+            str(tmp_path / "missing.json"),
+            "--thresholds",
+            str(tmp_path / "missing.json"),
+            "--test-evaluation",
+            str(tmp_path / "missing.json"),
+            "--output-dir",
+            str(tmp_path / "reports"),
+        ]
+    )
+
+    assert exit_code == 2
+    assert "INPUT_NOT_FOUND" in capsys.readouterr().err
+
+
 def test_evaluate_cache_cli_reports_missing_checkpoint(tmp_path: Path) -> None:
     exit_code = main(
         [

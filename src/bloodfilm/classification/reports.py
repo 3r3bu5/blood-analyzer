@@ -11,7 +11,7 @@ from bloodfilm.classification.parity import EMBEDDING_COSINE_MIN, LOGITS_TOLERAN
 from bloodfilm.classification.png import write_matrix_png, write_reliability_png
 from bloodfilm.data import create_leakage_report, read_manifest, read_split_manifest
 from bloodfilm.documents import write_json
-from bloodfilm.errors import ConfigError
+from bloodfilm.errors import ConfigError, InputNotFoundError
 from bloodfilm.evaluation.classifier import (
     calibration_summary,
     confusion_matrix,
@@ -39,10 +39,10 @@ def write_post_training_reports(
     verification_report: Path | None = None,
 ) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    comparison = _read_json(comparison_report)
-    embeddings = _read_json(embeddings_report)
-    inspection = _read_json(bundle_inspection)
-    threshold_doc = _read_json(thresholds)
+    comparison = _require_json(comparison_report, "comparison report")
+    embeddings = _require_json(embeddings_report, "embeddings report")
+    inspection = _require_json(bundle_inspection, "bundle inspection")
+    threshold_doc = _require_json(thresholds, "uncertainty thresholds")
     test_report = _read_json(test_evaluation) if test_evaluation.exists() else None
     parity = parity_report(parity_evidence)
     verification = (
@@ -513,6 +513,15 @@ def _high_confidence_errors(
 
 def _read_json(path: Path) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+
+
+def _require_json(path: Path, label: str) -> dict[str, Any]:
+    if not path.exists():
+        raise InputNotFoundError(
+            f"Required {label} not found: {path}. "
+            "Generate it first (see the milestone command sequence in README.md)."
+        )
+    return _read_json(path)
 
 
 def _write(path: Path, value: dict[str, object]) -> Path:

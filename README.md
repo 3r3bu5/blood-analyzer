@@ -74,14 +74,15 @@ make docker-config
 ## Kaggle parity run
 
 Live parity needs backbone weights plus raw crops, so it runs on a GPU Kaggle runner
-via `notebooks/03_kaggle_parity.ipynb` (no retraining). Upload three files from this
+via `notebooks/03_kaggle_parity.ipynb` (no retraining). Upload four files from this
 checkout as a Kaggle dataset first:
 
 - `data/embeddings/mll23_embeddings.pt` (~129 MB)
 - `outputs/checkpoints/mlp.pt` (~1.6 MB)
 - `outputs/reports/mll23_head_comparison.json`
+- `outputs/reports/mll23_embeddings.json`
 
-The notebook then downloads MLL23 and DinoBloom-B, restores the three files,
+The notebook then downloads MLL23 and DinoBloom-B, restores the four files,
 regenerates evaluation artifacts with `classifier evaluate-cache`, proves the live
 path with `classifier parity-live --device cuda` and one real `classifier classify-crop`,
 and finishes with `classifier validation-reports --parity-evidence ... --verification-report ...`.

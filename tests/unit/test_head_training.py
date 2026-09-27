@@ -1,7 +1,5 @@
 import pytest
 
-torch = pytest.importorskip("torch")
-
 from bloodfilm.classification.heads import build_head
 from bloodfilm.training.classifier import (
     TrainConfig,
@@ -10,6 +8,8 @@ from bloodfilm.training.classifier import (
     train_head,
 )
 from tests.helpers.fake_backbone import fake_embedding_bank
+
+torch = pytest.importorskip("torch")
 
 
 def test_weighted_loss_balances_rare_classes() -> None:
