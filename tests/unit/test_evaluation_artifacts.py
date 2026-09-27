@@ -82,6 +82,18 @@ def test_parity_report_accepts_ok_evidence(tmp_path) -> None:
     assert parity_report(None)["status"] == "blocked"
 
 
+def test_parity_tolerance_strings_match_canonical_declaration() -> None:
+    from bloodfilm.classification import parity as parity_module
+    from bloodfilm.classification.reports import parity_report
+
+    blocked = parity_report(None)
+
+    assert blocked["required_tolerance"] == {
+        "embedding_cosine_similarity": parity_module.EMBEDDING_COSINE_MIN,
+        "logits_allclose": parity_module.LOGITS_TOLERANCE_LABEL,
+    }
+
+
 def _acceptance_inputs(**overrides):
     from bloodfilm.schemas import MLL23_CANONICAL_CLASSES
 

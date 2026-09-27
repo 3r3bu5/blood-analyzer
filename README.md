@@ -71,6 +71,25 @@ PYTHONPATH=src /tmp/opencode/ml-venv/bin/python -m pytest -q
 make docker-config
 ```
 
+## Kaggle parity run
+
+Live parity needs backbone weights plus raw crops, so it runs on a GPU Kaggle runner
+via `notebooks/03_kaggle_parity.ipynb` (no retraining). Upload three files from this
+checkout as a Kaggle dataset first:
+
+- `data/embeddings/mll23_embeddings.pt` (~129 MB)
+- `outputs/checkpoints/mlp.pt` (~1.6 MB)
+- `outputs/reports/mll23_head_comparison.json`
+
+The notebook then downloads MLL23 and DinoBloom-B, restores the three files,
+regenerates evaluation artifacts with `classifier evaluate-cache`, proves the live
+path with `classifier parity-live --device cuda` and one real `classifier classify-crop`,
+and finishes with `classifier validation-reports --parity-evidence ... --verification-report ...`.
+The verification JSON is written only if `pytest`, `ruff`, and `mypy` all exit 0
+on the runner, so a passing acceptance can never rest on an unmeasured claim.
+Bring the resulting `parity_evidence.json` (and `parity_crop.json` if you want it)
+back to refresh the local acceptance report.
+
 The `data` command group remains as an alias of `dataset`. The `scripts/` wrappers
 (`audit_dataset.py`, `build_manifest.py`, `download_assets.py`) only parse arguments
 and call the `bloodfilm.data` package.

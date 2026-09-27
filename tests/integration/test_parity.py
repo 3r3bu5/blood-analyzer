@@ -10,7 +10,7 @@ MLL23_ROOT = REPO_ROOT / "data" / "raw" / "MLL23"
 CACHE = REPO_ROOT / "data" / "embeddings" / "mll23_embeddings.pt"
 CHECKPOINT = REPO_ROOT / "outputs" / "checkpoints" / "mlp.pt"
 
-torch = pytest.importorskip("torch")
+pytest.importorskip("torch")
 pytest.importorskip("timm")
 pytest.importorskip("torchvision")
 
@@ -24,75 +24,22 @@ needs_assets = pytest.mark.skipif(
 @pytest.mark.requires_model
 @pytest.mark.slow
 @needs_assets
-def test_live_embeddings_match_cached_embeddings() -> None:
-    from bloodfilm.classification.dinobloom import (
-        extract_backbone_embedding,
-        load_dinobloom_b_backbone,
-        preprocess_crop,
+def test_live_parity_matches_cached_embeddings_and_logits() -> None:
+    from bloodfilm.classification.parity import (
+        EMBEDDING_COSINE_MIN,
+        run_live_parity,
     )
-    from bloodfilm.classification.embeddings import load_embedding_cache
 
-    cache = load_embedding_cache(CACHE)
-    ok_entries = [entry for entry in cache.entries if entry.status == "ok"]
-    assert tuple(cache.embeddings.shape) == (len(ok_entries), 768)
-
-    seen_classes: set[int] = set()
-    selected: list[tuple[int, object]] = []
-    for position, entry in enumerate(ok_entries):
-        if entry.label_index not in seen_classes:
-            seen_classes.add(entry.label_index)
-            selected.append((position, entry))
-        if len(selected) >= 5:
-            break
-    assert selected, "no cached ok entries available for parity"
-
-    model = load_dinobloom_b_backbone(WEIGHTS)
-    for position, entry in selected:
-        image = MLL23_ROOT / entry.image_path
-        if not image.exists():
-            pytest.skip(f"parity crop missing: {image}")
-        live = extract_backbone_embedding(model, preprocess_crop(image))[0]
-        cached = cache.embeddings[position]
-        cosine = torch.nn.functional.cosine_similarity(
-            live.flatten(), cached.flatten(), dim=0
-        ).item()
-
-        assert cosine >= 0.9999
-
-
-@pytest.mark.requires_data
-@pytest.mark.requires_model
-@pytest.mark.slow
-@needs_assets
-def test_live_mlp_logits_match_cached_embedding_logits() -> None:
-    from bloodfilm.classification.dinobloom import (
-        extract_backbone_embedding,
-        load_dinobloom_b_backbone,
-        preprocess_crop,
+    evidence = run_live_parity(
+        weights=WEIGHTS,
+        dataset_root=MLL23_ROOT,
+        cache_path=CACHE,
+        checkpoint_path=CHECKPOINT,
+        max_crops=5,
     )
-    from bloodfilm.classification.embeddings import load_embedding_cache
-    from bloodfilm.classification.heads import build_head
 
-    cache = load_embedding_cache(CACHE)
-    ok_entries = [entry for entry in cache.entries if entry.status == "ok"]
-    checkpoint = torch.load(CHECKPOINT, map_location="cpu", weights_only=True)
-    head = build_head(str(checkpoint["head"]), len(checkpoint["class_names"]))
-    head.load_state_dict(checkpoint["model_state"])
-    head.eval()
-
-    model = load_dinobloom_b_backbone(WEIGHTS)
-    checked = 0
-    for position, entry in enumerate(ok_entries[:50]):
-        image = MLL23_ROOT / entry.image_path
-        if not image.exists():
-            continue
-        live_embedding = extract_backbone_embedding(model, preprocess_crop(image))
-        with torch.no_grad():
-            live_logits = head(live_embedding)[0]
-            cached_logits = head(cache.embeddings[position].unsqueeze(0))[0]
-
-        assert torch.allclose(live_logits, cached_logits, atol=1e-4, rtol=1e-4)
-        checked += 1
-        if checked >= 5:
-            break
-    assert checked > 0, "no parity crops with images on disk"
+    assert evidence["status"] == "ok"
+    assert evidence["crops_checked"] >= 1
+    assert evidence["min_cosine_similarity"] >= EMBEDDING_COSINE_MIN
+    assert all(row["logits_match"] for row in evidence["crops"])
+    assert len({row["label_index"] for row in evidence["crops"]}) == evidence["crops_checked"]

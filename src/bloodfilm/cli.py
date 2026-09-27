@@ -261,6 +261,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate_cache.set_defaults(handler=_classifier_evaluate_cache)
 
+    parity_live = classifier_subcommands.add_parser(
+        "parity-live", help="Check live backbone/head outputs against cached embeddings"
+    )
+    parity_live.add_argument(
+        "--weights", type=Path, default=Path("models/backbones/dinobloom-b.pth")
+    )
+    parity_live.add_argument("--dataset-root", type=Path, default=Path("data/raw/MLL23"))
+    parity_live.add_argument(
+        "--embeddings", type=Path, default=Path("data/embeddings/mll23_embeddings.pt")
+    )
+    parity_live.add_argument("--checkpoint", type=Path, default=Path("outputs/checkpoints/mlp.pt"))
+    parity_live.add_argument("--max-crops", type=int, default=5)
+    parity_live.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
+    parity_live.add_argument("--output", type=Path, required=True)
+    parity_live.set_defaults(handler=_classifier_parity_live)
+
     classify_crop = classifier_subcommands.add_parser(
         "classify-crop", help="Classify one already-cropped WBC image"
     )
@@ -691,6 +707,22 @@ def _classifier_evaluate_cache(args: argparse.Namespace) -> int:
         temperature_fit_split=str(checkpoint.get("eval_split", "validation")),
         uncertainty_policy=UncertaintyPolicy(**load_config_document(args.thresholds)),
     )
+    print(args.output)
+    return 0
+
+
+def _classifier_parity_live(args: argparse.Namespace) -> int:
+    from bloodfilm.classification.parity import run_live_parity
+
+    evidence = run_live_parity(
+        weights=args.weights,
+        dataset_root=args.dataset_root,
+        cache_path=args.embeddings,
+        checkpoint_path=args.checkpoint,
+        max_crops=args.max_crops,
+        device=args.device,
+    )
+    write_json(args.output, evidence)
     print(args.output)
     return 0
 

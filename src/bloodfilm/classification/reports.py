@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from bloodfilm.classification.parity import EMBEDDING_COSINE_MIN, LOGITS_TOLERANCE_LABEL
 from bloodfilm.classification.png import write_matrix_png, write_reliability_png
 from bloodfilm.data import create_leakage_report, read_manifest, read_split_manifest
 from bloodfilm.documents import write_json
@@ -338,7 +339,10 @@ def parity_report(evidence_path: Path | None = None) -> dict[str, object]:
         "blocker": "DinoBloom-B backbone weights are not available locally."
         if not backbone.exists()
         else "Run the requires_data/requires_model parity test with raw MLL23 images.",
-        "required_tolerance": {"embedding_cosine_similarity": 0.9999, "logits_allclose": "1e-4"},
+        "required_tolerance": {
+            "embedding_cosine_similarity": EMBEDDING_COSINE_MIN,
+            "logits_allclose": LOGITS_TOLERANCE_LABEL,
+        },
     }
 
 

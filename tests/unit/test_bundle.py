@@ -248,6 +248,51 @@ def test_package_bundle_cli_writes_required_files(tmp_path: Path) -> None:
     assert (bundle / "sha256sums.txt").exists()
 
 
+@pytest.mark.parametrize("flag", ["--weights", "--dataset-root", "--embeddings", "--checkpoint"])
+def test_parity_live_cli_reports_each_missing_asset(tmp_path: Path, flag: str) -> None:
+    present = tmp_path / "present"
+    present.mkdir()
+    (present / "weights.pth").write_bytes(b"weights")
+    (present / "embeddings.pt").write_bytes(b"cache")
+    (present / "mlp.pt").write_bytes(b"checkpoint")
+    (present / "data").mkdir()
+    locations = {
+        "--weights": str(present / "weights.pth"),
+        "--dataset-root": str(present / "data"),
+        "--embeddings": str(present / "embeddings.pt"),
+        "--checkpoint": str(present / "mlp.pt"),
+    }
+    locations[flag] = str(tmp_path / "missing-asset")
+
+    exit_code = main(
+        [
+            "classifier",
+            "parity-live",
+            "--weights",
+            locations["--weights"],
+            "--dataset-root",
+            locations["--dataset-root"],
+            "--embeddings",
+            locations["--embeddings"],
+            "--checkpoint",
+            locations["--checkpoint"],
+            "--output",
+            str(tmp_path / "parity.json"),
+        ]
+    )
+
+    assert exit_code == 2
+
+
+def test_parity_tolerances_match_canonical_values() -> None:
+    from bloodfilm.classification import parity as parity_module
+
+    assert parity_module.EMBEDDING_COSINE_MIN == 0.9999
+    assert parity_module.LOGITS_ATOL == 1e-4
+    assert parity_module.LOGITS_RTOL == 1e-4
+    assert parity_module.LOGITS_TOLERANCE_LABEL == "1e-4"
+
+
 def test_evaluate_cache_cli_reports_missing_checkpoint(tmp_path: Path) -> None:
     exit_code = main(
         [
