@@ -1,6 +1,6 @@
 # WBC Blood Film Analyzer
 
-Research proof-of-concept scaffold for the M0/M1 data gates and the M2 DinoBloom-B MLL23 classifier baseline in `WBC_Blood_Film_Analyzer_Technical_Design.md`.
+Research proof-of-concept scaffold for the M0/M1 data gates, M2 DinoBloom-B MLL23 classifier baseline, and M3 TXL-PBC WBC detector path in `WBC_Blood_Film_Analyzer_Technical_Design.md`.
 
 Implemented now:
 
@@ -14,11 +14,11 @@ Implemented now:
 - linear, MLP, and cosine head training from cached embeddings
 - research-only classifier bundle packaging and inspection
 - single-crop and folder classification commands that fail clearly when weights or ML dependencies are absent
-- M3 prep seams for TXL-PBC YOLO audit, detector metrics, and field-level detector/classifier JSON orchestration
+- TXL-PBC YOLO26n WBC detector bundle packaging, inspection, and audit artifacts
+- end-to-end field analysis notebook that runs detector boxes, crop classification, probability heatmaps, and JSON export
 
 Not implemented yet:
 
-- detector training or end-to-end field analysis
 - clinical validation or diagnostic use
 
 Configuration files:
@@ -47,6 +47,7 @@ PYTHONPATH=src python3 -m bloodfilm.cli classifier inspect-bundle --bundle model
 PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-crop --bundle models/mll23-dinobloom-b-mlp-v0.1 --image path/to/cell.tif --output outputs/predictions/cell.json
 PYTHONPATH=src python3 -m bloodfilm.cli classifier classify-folder --bundle models/mll23-dinobloom-b-mlp-v0.1 --input path/to/crops --output outputs/predictions/
 PYTHONPATH=src python3 -m bloodfilm.cli dataset audit TXL-PBC --format txl-pbc --dataset-root data/raw/TXL-PBC --report-output outputs/reports/txl_pbc_audit.json
+PYTHONPATH=src python3 -m bloodfilm.cli detector inspect-bundle --bundle models/txl-pbc-yolo26n-v0.1 --output outputs/reports/txl_pbc_detector_bundle_inspection.json
 ```
 
 Classifier inputs are single WBC crop images readable by Pillow. The production path converts
@@ -183,3 +184,11 @@ PYTHONPATH=src python3 -m bloodfilm.cli detector inspect-bundle \
   --bundle models/txl-pbc-yolo26n-v0.1 \
   --output outputs/reports/txl_pbc_detector_bundle_inspection.json
 ```
+
+The committed M3 bundle reports precision `0.999`, recall `1.0`, mAP50 `0.995`, mAP50-95 `0.886`, and zero missed WBC boxes on the TXL-PBC test split at confidence threshold `0.25`. These are dataset metrics only, not clinical validation.
+
+## End-to-End Field Analysis
+
+Use `notebooks/04_e2e_field_analysis.ipynb` to exercise one field image through the packaged detector and frozen 18-class classifier. It writes `outputs/e2e/field_analysis.json`, detector overlay PNGs, crop PNGs, and a classifier probability heatmap. Set `SAMPLE_FIELD=/path/to/image` to override the default TXL-PBC test image.
+
+The notebook requires the detector bundle at `models/txl-pbc-yolo26n-v0.1`, the classifier bundle at `models/mll23-dinobloom-b-mlp-v0.1`, and DinoBloom-B weights at `models/backbones/dinobloom-b.pth`.
