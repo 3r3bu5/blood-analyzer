@@ -6,7 +6,9 @@
   "threshold_sweep_effective": false,
   "evidence_reports": [
     "outputs/reports/detector_sweep_microscope_wbc.json",
-    "outputs/reports/detector_sweep_microscope_wbc2.json"
+    "outputs/reports/detector_sweep_microscope_wbc2.json",
+    "outputs/reports/detector_preprocess_wbc2.json",
+    "outputs/reports/detector_sweep_microscope_wbc2_field_roi.json"
   ],
   "observations": {
     "wbc.jpg": {
@@ -21,6 +23,7 @@
       "visible_wbc_count": 1,
       "tight_wbc_detections": 0,
       "field_sized_false_box": true,
+      "field_roi_preprocessing_effective": false,
       "stable_across_thresholds": true,
       "thresholds_checked": [0.05, 0.1, 0.15, 0.25, 0.35, 0.5]
     }

@@ -1,0 +1,14 @@
+{
+  "input": "data/microscope_samples/wbc2.jpeg",
+  "research_only": true,
+  "roi": {
+    "confidence": 0.556426,
+    "fallback_reason": null,
+    "method": "auto_illuminated_region",
+    "x1": 103,
+    "x2": 610,
+    "y1": 46,
+    "y2": 480
+  },
+  "schema_version": 1
+}

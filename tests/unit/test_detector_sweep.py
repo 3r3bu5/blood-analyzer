@@ -120,6 +120,27 @@ def test_run_prediction_sweep_counts_boxes_per_threshold(
     assert report["candidates"][0]["boxes_by_image"]["field"][0]["score"] == 0.9
 
 
+def test_run_prediction_sweep_field_roi_maps_boxes_to_original_coordinates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"weights")
+    image = tmp_path / "field.png"
+    pixels = []
+    for y in range(50):
+        for x in range(50):
+            pixels.append((240, 240, 240) if 10 <= x <= 39 and 8 <= y <= 37 else (0, 0, 0))
+    write_rgb_png(image, 50, 50, pixels)
+    _install_fake_yolo(monkeypatch, scores_by_threshold={0.25: [0.9]})
+
+    report = run_prediction_sweep(weights, [image], [0.25], preprocessing_mode="field_roi")
+
+    box = report["candidates"][0]["boxes_by_image"]["field"][0]
+    assert box == {"score": 0.9, "x1": 9.0, "x2": 19.0, "y1": 7.0, "y2": 17.0}
+    assert report["preprocessing_mode"] == "field_roi"
+    assert report["roi_by_image"]["field"]["method"] == "auto_illuminated_region"
+
+
 def test_run_prediction_sweep_rejects_missing_weights(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

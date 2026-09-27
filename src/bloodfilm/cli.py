@@ -614,9 +614,13 @@ def _detector_sweep(args: argparse.Namespace) -> int:
     thresholds = parse_thresholds(args.thresholds)
     images = collect_images(args.input)
     report = run_prediction_sweep(
-        args.weights, images, thresholds, iou_threshold=args.iou, image_size=args.imgsz
+        args.weights,
+        images,
+        thresholds,
+        iou_threshold=args.iou,
+        image_size=args.imgsz,
+        preprocessing_mode=args.mode,
     )
-    report["preprocessing_mode"] = args.mode
     if args.labels is not None:
         # YOLO filtering is monotonic in confidence, so the lowest-threshold
         # candidate holds the full prediction set for rescoring.

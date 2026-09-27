@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
+from bloodfilm.classification.png import write_rgb_png
 from bloodfilm.detection.detector import Detection
 from bloodfilm.detection.metrics import evaluate_detections, threshold_selection_report
+from bloodfilm.detection.roi import FieldROI, detect_field_roi
 from bloodfilm.documents import write_json
 from bloodfilm.errors import ConfigError, InputNotFoundError, ModelLoadError
-from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, probe_image
+from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, load_image, probe_image
 
 DEFAULT_SWEEP_THRESHOLDS = (0.05, 0.10, 0.15, 0.25, 0.35, 0.50)
 
@@ -109,6 +112,7 @@ def run_prediction_sweep(
     *,
     iou_threshold: float = 0.5,
     image_size: int = 640,
+    preprocessing_mode: str = "full_field",
 ) -> dict[str, Any]:
     """Run a YOLO bundle's weights over images once per threshold.
 
@@ -123,27 +127,33 @@ def run_prediction_sweep(
         raise ConfigError("No sweep images supplied")
     if not thresholds:
         raise ConfigError("No sweep thresholds supplied")
+    if preprocessing_mode not in {"full_field", "field_roi", "tiled", "field_roi_tiled"}:
+        raise ConfigError(f"Unsupported preprocessing mode: {preprocessing_mode}")
     model = _load_yolo(weights_path)
+    roi_by_image = _roi_by_image(images, preprocessing_mode=preprocessing_mode)
     results: list[dict[str, Any]] = []
     for threshold in thresholds:
         started = time.perf_counter()
         boxes_by_image: dict[str, list[dict[str, float]]] = {}
         total = 0
-        for image in images:
-            boxes = _predict_boxes(
-                model, image, confidence=threshold, iou=iou_threshold, image_size=image_size
-            )
-            boxes_by_image[image.stem] = [
-                {
-                    "x1": box.x1,
-                    "y1": box.y1,
-                    "x2": box.x2,
-                    "y2": box.y2,
-                    "score": box.score,
-                }
-                for box in boxes
-            ]
-            total += len(boxes)
+        with tempfile.TemporaryDirectory(prefix="bloodfilm-detector-sweep-") as temp_dir:
+            temp_root = Path(temp_dir)
+            for image in images:
+                prediction_image = image
+                roi = roi_by_image.get(image.stem)
+                if roi is not None:
+                    prediction_image = _write_roi_crop(image, roi, temp_root / f"{image.stem}.png")
+                boxes = _predict_boxes(
+                    model,
+                    prediction_image,
+                    confidence=threshold,
+                    iou=iou_threshold,
+                    image_size=image_size,
+                )
+                if roi is not None:
+                    boxes = [_map_roi_detection(box, roi) for box in boxes]
+                boxes_by_image[image.stem] = [_box_dict(box) for box in boxes]
+                total += len(boxes)
         elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         results.append(
             {
@@ -161,7 +171,9 @@ def run_prediction_sweep(
         "weights": str(weights_path),
         "iou_threshold": iou_threshold,
         "image_size": image_size,
+        "preprocessing_mode": preprocessing_mode,
         "images": [str(image) for image in images],
+        "roi_by_image": {image_id: roi.to_dict() for image_id, roi in roi_by_image.items()},
         "candidates": results,
     }
 
@@ -228,6 +240,43 @@ def _parse_yolo_label_file(
             )
         )
     return detections
+
+
+def _roi_by_image(images: list[Path], *, preprocessing_mode: str) -> dict[str, FieldROI]:
+    if preprocessing_mode not in {"field_roi", "field_roi_tiled"}:
+        return {}
+    return {image.stem: detect_field_roi(image) for image in images}
+
+
+def _write_roi_crop(image_path: Path, roi: FieldROI, output_path: Path) -> Path:
+    image = load_image(image_path)
+    pixels: list[tuple[int, int, int]] = []
+    for y in range(roi.y1, roi.y2):
+        for x in range(roi.x1, roi.x2):
+            offset = (y * image.width + x) * image.channels
+            channels = image.pixels[offset : offset + image.channels]
+            if len(channels) == 1:
+                pixels.append((channels[0], channels[0], channels[0]))
+            else:
+                pixels.append((channels[0], channels[1], channels[2]))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_rgb_png(output_path, roi.x2 - roi.x1, roi.y2 - roi.y1, pixels)
+    return output_path
+
+
+def _map_roi_detection(detection: Detection, roi: FieldROI) -> Detection:
+    return Detection(
+        x1=detection.x1 + roi.x1,
+        y1=detection.y1 + roi.y1,
+        x2=detection.x2 + roi.x1,
+        y2=detection.y2 + roi.y1,
+        score=detection.score,
+        label=detection.label,
+    )
+
+
+def _box_dict(box: Detection) -> dict[str, float]:
+    return {"x1": box.x1, "y1": box.y1, "x2": box.x2, "y2": box.y2, "score": box.score}
 
 
 def _load_yolo(weights_path: Path) -> Any:
