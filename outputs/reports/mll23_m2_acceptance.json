@@ -1,14 +1,12 @@
 {
   "artifact_integrity_result": "ok",
-  "blockers": [
-    "verification_missing"
-  ],
+  "blockers": [],
   "bundle": "models/mll23-dinobloom-b-mlp-v0.1",
   "bundle_sha256_values": {
     "bundle.json": {
       "exists": true,
-      "sha256": "5c536f5505eeddaa7643a9960ffc0bc40c0cd9757db01d1f509303596a749a7a",
-      "size_bytes": 1236
+      "sha256": "38e46626df49517e6efccf0233715ff7b6180f48a36888dfd5374dd5b8edd848",
+      "size_bytes": 1237
     },
     "calibration.json": {
       "exists": true,
@@ -37,7 +35,7 @@
     },
     "sha256sums.txt": {
       "exists": true,
-      "sha256": "5f796b14305372b9b14a5d6fc703dedf8d399fa593055fe56dde11d5ed701733",
+      "sha256": "9eb9f812e6fc2b5b84bee40a84ca843b0610e22984d861162cd81b8c43063e7a",
       "size_bytes": 641
     },
     "taxonomy.json": {
@@ -52,7 +50,7 @@
     }
   },
   "calibration_result": "outputs/reports/mll23_calibration.json",
-  "created_at": "2026-09-27T10:36:44.976897+00:00",
+  "created_at": "2026-09-27T10:50:17.237090+00:00",
   "evaluation_protocol_result": "ok",
   "inference_parity_result": {
     "checkpoint": "outputs/checkpoints/mlp.pt",
@@ -86,12 +84,90 @@
         "image_path": "lymphocyte_large_granular/lymphocyte_large_granular/lymphocyte_large_granular_0001.TIF",
         "label_index": 7,
         "logits_match": true
+      },
+      {
+        "cosine_similarity": 0.9999999403953552,
+        "image_path": "lymphocyte_neoplastic/lymphocyte_neoplastic/lymphocyte_neoplastic_0001.TIF",
+        "label_index": 8,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0,
+        "image_path": "lymphocyte_reactive/lymphocyte_reactive/lymphocyte_reactive_0001.TIF",
+        "label_index": 6,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0,
+        "image_path": "metamyelocyte/metamyelocyte/metamyelocyte_0001.TIF",
+        "label_index": 16,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 0.9999998807907104,
+        "image_path": "monocyte/monocyte/monocyte_0001.TIF",
+        "label_index": 4,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0000001192092896,
+        "image_path": "myeloblast/myeloblast/myeloblast_0001.TIF",
+        "label_index": 12,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0,
+        "image_path": "myelocyte/myelocyte/myelocyte_0001.TIF",
+        "label_index": 15,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 0.9999999403953552,
+        "image_path": "neutrophil_band/neutrophil_band/neutrophil_band_0001.TIF",
+        "label_index": 2,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0,
+        "image_path": "neutrophil_segmented/neutrophil_segmented/neutrophil_segmented_0001.TIF",
+        "label_index": 3,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0000001192092896,
+        "image_path": "normoblast/normoblast/normoblast_0001.TIF",
+        "label_index": 17,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0,
+        "image_path": "plasma_cell/plasma_cell/plasma_cell_0001.TIF",
+        "label_index": 10,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 0.9999999403953552,
+        "image_path": "promyelocyte/promyelocyte/promyelocyte_0001.TIF",
+        "label_index": 13,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 1.0,
+        "image_path": "promyelocyte_atypical/promyelocyte_atypical/promyelocyte_atypical_0001.TIF",
+        "label_index": 14,
+        "logits_match": true
+      },
+      {
+        "cosine_similarity": 0.9999998807907104,
+        "image_path": "smudge_cell/smudge_cell/smudge_cell_0001.TIF",
+        "label_index": 11,
+        "logits_match": true
       }
     ],
-    "crops_checked": 5,
+    "crops_checked": 18,
     "dataset_root": "data/raw/MLL23",
     "embeddings": "data/embeddings/mll23_embeddings.pt",
-    "min_cosine_similarity": 1.0,
+    "min_cosine_similarity": 0.9999998807907104,
     "required_tolerance": {
       "embedding_cosine_similarity": 0.9999,
       "logits_allclose": "1e-4"
@@ -275,8 +351,12 @@
     "top2_accuracy": 0.988056810845707
   },
   "split_integrity_result": "ok",
-  "status": "blocked",
-  "test_lint_typecheck": "missing",
+  "status": "accepted_with_limitations",
+  "test_lint_typecheck": "passed",
   "uncertainty_policy_result": "configured",
-  "verification": {}
+  "verification": {
+    "mypy": "passed",
+    "pytest": "passed",
+    "ruff": "passed"
+  }
 }
