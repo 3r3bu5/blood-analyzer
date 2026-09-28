@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
             url=args.leukemia_url,
             output=args.leukemia_output,
             dry_run=args.dry_run,
+            attempts=args.leukemia_attempts,
+            retry_sleep_seconds=args.leukemia_retry_sleep,
         )
     _write_json(args.report_output, report)
     print(args.report_output)
@@ -55,6 +58,8 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--skip-txl", action="store_true")
     parser.add_argument("--skip-leukemia", action="store_true")
+    parser.add_argument("--leukemia-attempts", type=int, default=8)
+    parser.add_argument("--leukemia-retry-sleep", type=float, default=60.0)
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
@@ -98,7 +103,14 @@ def _prepare_txl_pbc(*, url: str, output: Path, dry_run: bool) -> dict[str, Any]
     }
 
 
-def _prepare_leukemia_attri(*, url: str, output: Path, dry_run: bool) -> dict[str, Any]:
+def _prepare_leukemia_attri(
+    *,
+    url: str,
+    output: Path,
+    dry_run: bool,
+    attempts: int = 8,
+    retry_sleep_seconds: float = 60.0,
+) -> dict[str, Any]:
     if dry_run:
         return {
             "status": "dry_run",
@@ -108,10 +120,26 @@ def _prepare_leukemia_attri(*, url: str, output: Path, dry_run: bool) -> dict[st
     _ensure_gdown()
     command = _gdown_folder_command(url, output, remaining_ok=_gdown_supports_remaining_ok())
     output.mkdir(parents=True, exist_ok=True)
-    subprocess.run(command, check=True)
+    completed_attempts = 0
+    for attempt in range(1, max(attempts, 1) + 1):
+        completed_attempts = attempt
+        try:
+            subprocess.run(command, check=True)
+            break
+        except subprocess.CalledProcessError as exc:
+            if attempt >= max(attempts, 1):
+                raise RuntimeError(
+                    "LeukemiaAttri download stopped after "
+                    f"{completed_attempts} attempt(s) with Google Drive quota errors. "
+                    "Partial files are kept under data/raw/LeukemiaAttri because gdown "
+                    "uses --continue, so re-running this script resumes. If quota persists, "
+                    "wait before retrying or download the Drive folder manually."
+                ) from exc
+            time.sleep(retry_sleep_seconds)
     return {
         "status": "ok",
         "output": str(output),
+        "attempts": completed_attempts,
         "json_label_count": len(list(output.glob("*/json_labels/*.json"))),
         "image_count": len(list(output.glob("*/Images/*/*")))
         + len(list(output.glob("*/images/*/*"))),
