@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import shutil
 from collections import Counter
 from pathlib import Path
@@ -63,23 +64,22 @@ def prepare_multidomain_yolo_dataset(
     require_fully_annotated(txl_annotation_completeness)
     require_fully_annotated(leukemia_annotation_completeness)
     output = Path(output_root)
-    samples = [
-        *_collect_source_samples(
-            Path(txl_pbc_root),
-            source_dataset="TXL-PBC",
-            output_prefix="txl_pbc",
-            class_names=txl_class_names,
-            class_mapping=txl_class_mapping,
-            annotation_completeness=AnnotationCompleteness(txl_annotation_completeness),
-        ),
-        *_collect_leukemia_samples(
-            Path(leukemia_attri_root),
-            class_names=leukemia_class_names,
-            class_mapping=leukemia_class_mapping,
-            annotation_completeness=AnnotationCompleteness(leukemia_annotation_completeness),
-            annotation_format=leukemia_annotation_format,
-        ),
-    ]
+    samples = _collect_source_samples(
+        Path(txl_pbc_root),
+        source_dataset="TXL-PBC",
+        output_prefix="txl_pbc",
+        class_names=txl_class_names,
+        class_mapping=txl_class_mapping,
+        annotation_completeness=AnnotationCompleteness(txl_annotation_completeness),
+    )
+    leukemia_samples, degenerate_skipped = _collect_leukemia_samples(
+        Path(leukemia_attri_root),
+        class_names=leukemia_class_names,
+        class_mapping=leukemia_class_mapping,
+        annotation_completeness=AnnotationCompleteness(leukemia_annotation_completeness),
+        annotation_format=leukemia_annotation_format,
+    )
+    samples.extend(leukemia_samples)
     if not samples:
         raise ConfigError("No detector samples found for multidomain preparation")
 
@@ -142,9 +142,11 @@ def prepare_multidomain_yolo_dataset(
         "sample_count": len(manifest_rows),
         "source_sample_counts": dict(sorted(source_counts.items())),
         "candidate_wbc_box_counts": dict(sorted(box_counts.items())),
+        "degenerate_boxes_skipped": _summarize_skipped(degenerate_skipped),
         "notes": [
             "Only canonical candidate_wbc boxes are written as YOLO class 0.",
             "Artifact, RBC, platelet, unknown, and unmapped source classes are excluded from detector targets.",
+            "Zero-area and non-finite COCO boxes are excluded from detector targets and counted under degenerate_boxes_skipped; a zero-area box cannot train a box regressor.",
             "Patient-level independence is not claimed unless source metadata supplies patient IDs.",
         ],
     }
@@ -159,15 +161,18 @@ def _collect_leukemia_samples(
     class_mapping: dict[str, str],
     annotation_completeness: AnnotationCompleteness,
     annotation_format: str,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if annotation_format == "yolo":
-        return _collect_source_samples(
-            root,
-            source_dataset="LeukemiaAttri",
-            output_prefix="leukemia_attri",
-            class_names=class_names,
-            class_mapping=class_mapping,
-            annotation_completeness=annotation_completeness,
+        return (
+            _collect_source_samples(
+                root,
+                source_dataset="LeukemiaAttri",
+                output_prefix="leukemia_attri",
+                class_names=class_names,
+                class_mapping=class_mapping,
+                annotation_completeness=annotation_completeness,
+            ),
+            [],
         )
     if annotation_format == "coco_domain":
         return _collect_leukemia_coco_domain_samples(
@@ -176,6 +181,17 @@ def _collect_leukemia_samples(
             annotation_completeness=annotation_completeness,
         )
     raise ConfigError(f"Unsupported LeukemiaAttri annotation format: {annotation_format}")
+
+
+def _summarize_skipped(skipped: list[dict[str, Any]]) -> dict[str, Any]:
+    by_file: Counter[str] = Counter()
+    for entry in skipped:
+        by_file[str(entry.get("source_file", ""))] += 1
+    return {
+        "total": len(skipped),
+        "by_source_file": dict(sorted(by_file.items())),
+        "examples": skipped[:10],
+    }
 
 
 def _collect_source_samples(
@@ -260,8 +276,9 @@ def _collect_leukemia_coco_domain_samples(
     *,
     class_mapping: dict[str, str],
     annotation_completeness: AnnotationCompleteness,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     samples: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
     annotation_paths = sorted(root.glob("*/json_labels/*.json"))
     if not annotation_paths:
         raise InputNotFoundError(f"LeukemiaAttri COCO json_labels not found under {root}")
@@ -303,10 +320,17 @@ def _collect_leukemia_coco_domain_samples(
                     f"{annotation_path} has malformed bbox for annotation {annotation.get('id')}"
                 )
             x, y, width, height = [float(value) for value in bbox]
-            if width <= 0 or height <= 0:
-                raise ConfigError(
-                    f"{annotation_path} has non-positive bbox for annotation {annotation.get('id')}"
+            if width <= 0 or height <= 0 or not math.isfinite(x + y + width + height):
+                skipped.append(
+                    {
+                        "source_file": str(annotation_path),
+                        "annotation_id": annotation.get("id"),
+                        "image_id": annotation.get("image_id"),
+                        "bbox": [x, y, width, height],
+                        "reason": "degenerate_box",
+                    }
                 )
+                continue
             source_class = categories.get(int(annotation["category_id"]), "unknown")
             canonical_class = class_mapping.get(source_class, "unknown")
             records_by_image[image_id].append(
@@ -362,7 +386,7 @@ def _collect_leukemia_coco_domain_samples(
                     "candidate_wbc_count": len(candidate_records),
                 }
             )
-    return samples
+    return samples, skipped
 
 
 def _iter_images(image_root: Path) -> list[Path]:
