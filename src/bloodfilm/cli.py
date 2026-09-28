@@ -164,6 +164,58 @@ def build_parser() -> argparse.ArgumentParser:
     detector_prepare.add_argument("--report-output", type=Path, required=True)
     detector_prepare.set_defaults(handler=_detector_prepare_yolo)
 
+    detector_prepare_multidomain = detector_subcommands.add_parser(
+        "prepare", help="Create a unified multidomain candidate-WBC YOLO dataset"
+    )
+    detector_prepare_multidomain.add_argument("--txl-pbc-root", type=Path, required=True)
+    detector_prepare_multidomain.add_argument("--leukemia-attri-root", type=Path, required=True)
+    detector_prepare_multidomain.add_argument(
+        "--output-root", type=Path, default=Path("data/detection/multidomain")
+    )
+    detector_prepare_multidomain.add_argument(
+        "--manifest-output",
+        type=Path,
+        default=Path("data/manifests/detector_multidomain_manifest.csv"),
+    )
+    detector_prepare_multidomain.add_argument(
+        "--splits-output",
+        type=Path,
+        default=Path("data/manifests/detector_multidomain_splits.csv"),
+    )
+    detector_prepare_multidomain.add_argument(
+        "--leakage-output",
+        type=Path,
+        default=Path("outputs/reports/detector_multidomain_leakage.json"),
+    )
+    detector_prepare_multidomain.add_argument(
+        "--report-output",
+        type=Path,
+        default=Path("outputs/reports/detector_multidomain_preparation.json"),
+    )
+    detector_prepare_multidomain.add_argument("--txl-class-names", action="append", default=[])
+    detector_prepare_multidomain.add_argument("--txl-class-mapping", action="append", default=[])
+    detector_prepare_multidomain.add_argument("--leukemia-class-names", action="append", default=[])
+    detector_prepare_multidomain.add_argument(
+        "--leukemia-class-mapping", action="append", default=[]
+    )
+    detector_prepare_multidomain.add_argument(
+        "--txl-annotation-completeness",
+        choices=["fully_annotated", "sparsely_annotated", "unknown"],
+        default="fully_annotated",
+    )
+    detector_prepare_multidomain.add_argument(
+        "--leukemia-annotation-completeness",
+        choices=["fully_annotated", "sparsely_annotated", "unknown"],
+        default="fully_annotated",
+    )
+    detector_prepare_multidomain.add_argument(
+        "--locked-target-hashes",
+        type=Path,
+        default=None,
+        help="Optional newline-delimited SHA256 hashes reserved for target validation",
+    )
+    detector_prepare_multidomain.set_defaults(handler=_detector_prepare_multidomain)
+
     detector_preprocess = detector_subcommands.add_parser(
         "preprocess", help="Detect microscope-field ROI preprocessing metadata"
     )
@@ -572,6 +624,29 @@ def _detector_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _detector_prepare_multidomain(args: argparse.Namespace) -> int:
+    from bloodfilm.detection.multidomain import prepare_multidomain_yolo_dataset
+
+    report = prepare_multidomain_yolo_dataset(
+        txl_pbc_root=args.txl_pbc_root,
+        leukemia_attri_root=args.leukemia_attri_root,
+        output_root=args.output_root,
+        manifest_output=args.manifest_output,
+        splits_output=args.splits_output,
+        leakage_output=args.leakage_output,
+        report_output=args.report_output,
+        txl_class_names=_parse_int_mapping(args.txl_class_names),
+        txl_class_mapping=_parse_str_mapping(args.txl_class_mapping),
+        leukemia_class_names=_parse_int_mapping(args.leukemia_class_names),
+        leukemia_class_mapping=_parse_str_mapping(args.leukemia_class_mapping),
+        locked_hashes=_read_hashes(args.locked_target_hashes),
+        txl_annotation_completeness=args.txl_annotation_completeness,
+        leukemia_annotation_completeness=args.leukemia_annotation_completeness,
+    )
+    print(report["data_yaml"])
+    return 0
+
+
 def _detector_package_bundle(args: argparse.Namespace) -> int:
     from bloodfilm.detection.bundle import write_detector_bundle
 
@@ -671,6 +746,18 @@ def _parse_int_mapping(values: list[str]) -> dict[int, str]:
         except ValueError as exc:
             raise ConfigError(f"Expected integer mapping key, got {key!r}") from exc
     return parsed
+
+
+def _read_hashes(path: Path | None) -> set[str]:
+    if path is None:
+        return set()
+    if not path.exists():
+        raise InputNotFoundError(f"Hash file not found: {path}")
+    return {
+        line.strip().lower()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
 
 
 def _train_classifier(args: argparse.Namespace) -> int:

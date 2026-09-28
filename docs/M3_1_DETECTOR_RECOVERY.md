@@ -29,7 +29,7 @@ LISC is optional because it requires mask-to-box conversion and source-term revi
 - Added overlapping tile generation, coordinate mapping, and global NMS utilities.
 - Added box sanity checks for field-sized boxes and other suspicious geometry.
 - Added optional LISC mask-to-box utility.
-- Added detector CLI support for `preprocess` and `audit`.
+- Added detector CLI support for `prepare`, `preprocess`, and `audit`.
 - Extended detector sweep reports with explicit preprocessing mode.
 
 The frozen DinoBloom-B + MLP classifier remains unchanged.
@@ -73,6 +73,25 @@ PYTHONPATH=src python3 -m bloodfilm.cli detector sweep \
   --report-output outputs/reports/detector_sweep_microscope_wbc.json
 ```
 
+Prepare the unified multidomain YOLO dataset after TXL-PBC and LeukemiaAttri audits pass:
+
+```bash
+PYTHONPATH=src python3 -m bloodfilm.cli detector prepare \
+  --txl-pbc-root data/raw/TXL-PBC/TXL-PBC \
+  --leukemia-attri-root data/raw/LeukemiaAttri \
+  --output-root data/detection/multidomain \
+  --manifest-output data/manifests/detector_multidomain_manifest.csv \
+  --splits-output data/manifests/detector_multidomain_splits.csv \
+  --leakage-output outputs/reports/detector_multidomain_leakage.json \
+  --report-output outputs/reports/detector_multidomain_preparation.json \
+  --txl-class-names "0=wbc" \
+  --txl-class-mapping "wbc=candidate_wbc" \
+  --leukemia-class-names "0=Neutrophil" \
+  --leukemia-class-mapping "Neutrophil=candidate_wbc"
+```
+
+Add every reviewed LeukemiaAttri class ID/name with `--leukemia-class-names` and map genuine WBC classes to `candidate_wbc`. Use `--locked-target-hashes` when target smoke or validation images have known SHA256 hashes that must be excluded from training.
+
 Run all available checks:
 
 ```bash
@@ -104,7 +123,6 @@ Bring back the generated `outputs/detector_multidomain/` directory and `outputs/
 
 These commands are part of the M3.1 plan but are intentionally not documented as runnable until implemented:
 
-- unified multidomain manifest preparation CLI
 - annotation overlay gallery rendering CLI
 - target smoke-test evaluator with reviewed labels
 - trained multidomain model packaging

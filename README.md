@@ -195,6 +195,20 @@ PYTHONPATH=src python3 -m bloodfilm.cli detector sweep \
   --report-output outputs/reports/detector_sweep_microscope_wbc.json
 ```
 
+For M3.1 multidomain recovery, build the unified candidate-WBC YOLO dataset only after TXL-PBC and LeukemiaAttri annotations are audited as fully annotated:
+
+```bash
+PYTHONPATH=src python3 -m bloodfilm.cli detector prepare \
+  --txl-pbc-root data/raw/TXL-PBC/TXL-PBC \
+  --leukemia-attri-root data/raw/LeukemiaAttri \
+  --txl-class-names "0=wbc" \
+  --txl-class-mapping "wbc=candidate_wbc" \
+  --leukemia-class-names "0=Neutrophil" \
+  --leukemia-class-mapping "Neutrophil=candidate_wbc"
+```
+
+This writes `data/detection/multidomain/data.yaml`, `data/manifests/detector_multidomain_manifest.csv`, `data/manifests/detector_multidomain_splits.csv`, and preparation/leakage reports under `outputs/reports/`.
+
 The committed M3 bundle reports precision `0.999`, recall `1.0`, mAP50 `0.995`, mAP50-95 `0.886`, and zero missed WBC boxes on the TXL-PBC test split at confidence threshold `0.25`. These are dataset metrics only, not clinical validation.
 
 ## End-to-End Field Analysis

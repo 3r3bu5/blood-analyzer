@@ -39,6 +39,63 @@ def test_detector_prepare_yolo_cli_writes_wbc_derivative(tmp_path: Path) -> None
     assert (output / "data.yaml").exists()
 
 
+def test_detector_prepare_cli_writes_multidomain_yolo_dataset(tmp_path: Path) -> None:
+    txl = tmp_path / "txl"
+    leukemia = tmp_path / "leukemia"
+    (txl / "images" / "train").mkdir(parents=True)
+    (txl / "labels" / "train").mkdir(parents=True)
+    (leukemia / "images" / "val").mkdir(parents=True)
+    (leukemia / "labels" / "val").mkdir(parents=True)
+    write_rgb_png(txl / "images" / "train" / "txl.png", 20, 20, [(255, 255, 255)] * 400)
+    write_rgb_png(leukemia / "images" / "val" / "leuk.png", 20, 20, [(255, 255, 255)] * 400)
+    (txl / "labels" / "train" / "txl.txt").write_text("0 0.5 0.5 0.2 0.2\n", encoding="utf-8")
+    (leukemia / "labels" / "val" / "leuk.txt").write_text(
+        "2 0.5 0.5 0.3 0.3 attrs\n", encoding="utf-8"
+    )
+    output = tmp_path / "multidomain"
+    report = tmp_path / "report.json"
+    manifest = tmp_path / "manifest.csv"
+    splits = tmp_path / "splits.csv"
+    leakage = tmp_path / "leakage.json"
+
+    exit_code = main(
+        [
+            "detector",
+            "prepare",
+            "--txl-pbc-root",
+            str(txl),
+            "--leukemia-attri-root",
+            str(leukemia),
+            "--output-root",
+            str(output),
+            "--manifest-output",
+            str(manifest),
+            "--splits-output",
+            str(splits),
+            "--leakage-output",
+            str(leakage),
+            "--report-output",
+            str(report),
+            "--txl-class-names",
+            "0=wbc",
+            "--txl-class-mapping",
+            "wbc=candidate_wbc",
+            "--leukemia-class-names",
+            "2=Neutrophil",
+            "--leukemia-class-mapping",
+            "Neutrophil=candidate_wbc",
+        ]
+    )
+
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert payload["sample_count"] == 2
+    assert (output / "data.yaml").exists()
+    assert manifest.exists()
+    assert splits.exists()
+    assert json.loads(leakage.read_text(encoding="utf-8"))["locked_target_violations"] == []
+
+
 def test_detector_package_bundle_cli_writes_inspectable_bundle(tmp_path: Path) -> None:
     weights = tmp_path / "best.pt"
     weights.write_bytes(b"weights")
