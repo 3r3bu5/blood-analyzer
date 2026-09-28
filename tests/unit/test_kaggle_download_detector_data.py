@@ -1,4 +1,5 @@
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -113,6 +114,55 @@ def test_prepare_leukemia_attri_uses_takeout_zip_instead_of_gdown(tmp_path: Path
     assert report["json_label_count"] == 1
     assert report["image_count"] == 1
     assert (tmp_path / "LeukemiaAttri" / "H_100X_C1" / "json_labels" / "test.json").exists()
+
+
+def test_non_zip_download_reports_preview_and_login_hint(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.zip"
+    bad.write_text("<!doctype html><html>sign in</html>", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="HTML"):
+        download_module._extract_zip_into(bad, tmp_path / "out")
+
+
+def test_prepare_leukemia_from_zips_accepts_uploaded_local_zip(tmp_path: Path) -> None:
+    import zipfile
+
+    uploaded = tmp_path / "uploaded.zip"
+    with zipfile.ZipFile(uploaded, "w") as archive:
+        archive.writestr("H_100X_C1/json_labels/test.json", '{"images": []}')
+        archive.writestr("H_100X_C1/Images/test/field.png", b"fake-png")
+
+    report = download_module._prepare_leukemia_from_zips(
+        urls=[str(uploaded)], output=tmp_path / "LeukemiaAttri"
+    )
+
+    assert report["method"] == "takeout_zip"
+    assert report["json_label_count"] == 1
+    assert report["image_count"] == 1
+
+
+def test_prepare_leukemia_from_zips_redownloads_stale_non_zip_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import zipfile
+
+    real = tmp_path / "real.zip"
+    with zipfile.ZipFile(real, "w") as archive:
+        archive.writestr("H_100X_C1/json_labels/test.json", '{"images": []}')
+    cached = tmp_path / "LeukemiaAttri_takeout_zips" / real.name
+    cached.parent.mkdir(parents=True)
+    cached.write_text("<html>stale login page</html>", encoding="utf-8")
+
+    def fake_download(url: str, destination: Path) -> None:
+        shutil.copyfile(real, destination)
+
+    monkeypatch.setattr(download_module, "_download_url_to_file", fake_download)
+
+    report = download_module._prepare_leukemia_from_zips(
+        urls=["https://example.invalid/real.zip"], output=tmp_path / "LeukemiaAttri"
+    )
+
+    assert report["json_label_count"] == 1
 
 
 def test_extract_zip_into_rejects_path_traversal(tmp_path: Path) -> None:

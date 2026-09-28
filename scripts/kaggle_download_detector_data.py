@@ -34,7 +34,9 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=args.dry_run,
         )
     if not args.skip_leukemia:
-        zip_urls = list(args.leukemia_zip_url) or _env_zip_urls()
+        zip_urls = list(args.leukemia_zip_url) + list(args.leukemia_zip_file)
+        if not zip_urls:
+            zip_urls = _env_zip_urls()
         report["leukemia_attri"] = _prepare_leukemia_attri(
             url=args.leukemia_url,
             output=args.leukemia_output,
@@ -63,6 +65,15 @@ def _parser() -> argparse.ArgumentParser:
             "Google Takeout zip URL for the LeukemiaAttri folder. Repeat for each "
             "Takeout part, or set LEUKEMIA_ZIP_URLS (one URL per line). "
             "When given, the zip path is used instead of per-file gdown."
+        ),
+    )
+    parser.add_argument(
+        "--leukemia-zip-file",
+        action="append",
+        default=[],
+        help=(
+            "Local Takeout zip already available to the runner, e.g. an uploaded "
+            "Kaggle dataset at /kaggle/input/<dataset>/<file>.zip. Repeat per part."
         ),
     )
     parser.add_argument("--leukemia-output", type=Path, default=Path("data/raw/LeukemiaAttri"))
@@ -227,13 +238,21 @@ def _prepare_leukemia_from_zips(*, urls: list[str], output: Path) -> dict[str, A
     download_dir.mkdir(parents=True, exist_ok=True)
     output.mkdir(parents=True, exist_ok=True)
     parts: list[str] = []
-    for index, url in enumerate(urls, start=1):
-        filename = _zip_filename(url, index)
+    for index, source in enumerate(urls, start=1):
+        local = _existing_local_zip(source)
+        if local is not None:
+            parts.append(str(local))
+            continue
+        filename = _zip_filename(source, index)
         destination = download_dir / filename
-        if destination.exists() and destination.stat().st_size > 0:
+        if (
+            destination.exists()
+            and destination.stat().st_size > 0
+            and zipfile.is_zipfile(destination)
+        ):
             parts.append(str(destination))
             continue
-        _download_url_to_file(url, destination)
+        _download_url_to_file(source, destination)
         parts.append(str(destination))
     for part in parts:
         _extract_zip_into(Path(part), output)
@@ -266,9 +285,39 @@ def _download_url_to_file(url: str, destination: Path) -> None:
         raise RuntimeError(f"Downloaded zip is empty: {destination}")
 
 
+def _existing_local_zip(source: str) -> Path | None:
+    candidate = Path(source.strip().strip("'\""))
+    if candidate.exists() and candidate.is_file():
+        if not zipfile.is_zipfile(candidate):
+            raise RuntimeError(_non_zip_error(candidate))
+        return candidate
+    return None
+
+
+def _non_zip_error(zip_path: Path) -> str:
+    size = zip_path.stat().st_size if zip_path.exists() else -1
+    preview = ""
+    try:
+        with zip_path.open("rb") as handle:
+            preview = handle.read(200).decode("utf-8", errors="replace")
+    except OSError:
+        preview = "<unreadable>"
+    hint = ""
+    if preview.lstrip().lower().startswith(("<!doctype", "<html")):
+        hint = (
+            " The file looks like an HTML page, so the link probably needs a Google "
+            "login in a browser and Kaggle cannot fetch it. Download the Takeout zip "
+            "on your own PC, upload it as a Kaggle dataset, and pass "
+            "--leukemia-zip-file /kaggle/input/<dataset>/<file>.zip instead."
+        )
+    return (
+        f"Not a zip archive: {zip_path} (size {size} bytes). First bytes: {preview[:200]!r}.{hint}"
+    )
+
+
 def _extract_zip_into(zip_path: Path, output: Path) -> None:
     if not zipfile.is_zipfile(zip_path):
-        raise RuntimeError(f"Not a zip archive: {zip_path}")
+        raise RuntimeError(_non_zip_error(zip_path))
     with zipfile.ZipFile(zip_path) as archive:
         _assert_zip_members_safe(archive)
         archive.extractall(output)
