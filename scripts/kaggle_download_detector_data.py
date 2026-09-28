@@ -99,10 +99,14 @@ def _prepare_txl_pbc(*, url: str, output: Path, dry_run: bool) -> dict[str, Any]
 
 
 def _prepare_leukemia_attri(*, url: str, output: Path, dry_run: bool) -> dict[str, Any]:
-    command = [sys.executable, "-m", "gdown", "--folder", url, "-O", str(output), "--continue"]
     if dry_run:
-        return {"status": "dry_run", "output": str(output), "command": command}
+        return {
+            "status": "dry_run",
+            "output": str(output),
+            "command": _gdown_folder_command(url, output, remaining_ok=True),
+        }
     _ensure_gdown()
+    command = _gdown_folder_command(url, output, remaining_ok=_gdown_supports_remaining_ok())
     output.mkdir(parents=True, exist_ok=True)
     subprocess.run(command, check=True)
     return {
@@ -123,6 +127,35 @@ def _ensure_gdown() -> None:
         return
     except ImportError:
         subprocess.run([sys.executable, "-m", "pip", "install", "-q", "gdown"], check=True)
+
+
+def _gdown_folder_command(url: str, output: Path, *, remaining_ok: bool) -> list[str]:
+    command = [
+        sys.executable,
+        "-m",
+        "gdown",
+        "--folder",
+        url,
+        "-O",
+        str(output),
+        "--continue",
+    ]
+    if remaining_ok:
+        command.append("--remaining-ok")
+    return command
+
+
+def _gdown_supports_remaining_ok() -> bool:
+    result = subprocess.run(
+        [sys.executable, "-m", "gdown", "--help"],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return True
+    output = (result.stdout or "") + (result.stderr or "")
+    return "--remaining-ok" in output
 
 
 def _ensure_git_lfs() -> None:

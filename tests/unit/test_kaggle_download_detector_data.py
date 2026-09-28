@@ -25,3 +25,4 @@ def test_kaggle_download_detector_data_dry_run_writes_resume_commands(tmp_path: 
     assert ["git", "lfs", "pull"] in payload["txl_pbc"]["post_clone_commands"]
     assert "gdown" in payload["leukemia_attri"]["command"]
     assert "--continue" in payload["leukemia_attri"]["command"]
+    assert "--remaining-ok" in payload["leukemia_attri"]["command"]
