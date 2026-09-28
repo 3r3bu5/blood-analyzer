@@ -72,7 +72,7 @@ def prepare_multidomain_yolo_dataset(
         class_mapping=txl_class_mapping,
         annotation_completeness=AnnotationCompleteness(txl_annotation_completeness),
     )
-    leukemia_samples, degenerate_skipped = _collect_leukemia_samples(
+    leukemia_samples, leukemia_issues = _collect_leukemia_samples(
         Path(leukemia_attri_root),
         class_names=leukemia_class_names,
         class_mapping=leukemia_class_mapping,
@@ -142,11 +142,14 @@ def prepare_multidomain_yolo_dataset(
         "sample_count": len(manifest_rows),
         "source_sample_counts": dict(sorted(source_counts.items())),
         "candidate_wbc_box_counts": dict(sorted(box_counts.items())),
-        "degenerate_boxes_skipped": _summarize_skipped(degenerate_skipped),
+        "degenerate_boxes_skipped": _summarize_skipped(leukemia_issues["degenerate_boxes"]),
+        "unusable_annotation_files_skipped": leukemia_issues["unusable_files"],
+        "missing_image_files_skipped": _summarize_skipped(leukemia_issues["missing_images"]),
         "notes": [
             "Only canonical candidate_wbc boxes are written as YOLO class 0.",
             "Artifact, RBC, platelet, unknown, and unmapped source classes are excluded from detector targets.",
             "Zero-area and non-finite COCO boxes are excluded from detector targets and counted under degenerate_boxes_skipped; a zero-area box cannot train a box regressor.",
+            "COCO annotation files whose image directory is missing are excluded and listed under unusable_annotation_files_skipped; images whose files are missing are excluded and counted under missing_image_files_skipped.",
             "Patient-level independence is not claimed unless source metadata supplies patient IDs.",
         ],
     }
@@ -161,7 +164,7 @@ def _collect_leukemia_samples(
     class_mapping: dict[str, str],
     annotation_completeness: AnnotationCompleteness,
     annotation_format: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
     if annotation_format == "yolo":
         return (
             _collect_source_samples(
@@ -172,7 +175,7 @@ def _collect_leukemia_samples(
                 class_mapping=class_mapping,
                 annotation_completeness=annotation_completeness,
             ),
-            [],
+            _empty_issues(),
         )
     if annotation_format == "coco_domain":
         return _collect_leukemia_coco_domain_samples(
@@ -181,6 +184,10 @@ def _collect_leukemia_samples(
             annotation_completeness=annotation_completeness,
         )
     raise ConfigError(f"Unsupported LeukemiaAttri annotation format: {annotation_format}")
+
+
+def _empty_issues() -> dict[str, list[dict[str, Any]]]:
+    return {"degenerate_boxes": [], "unusable_files": [], "missing_images": []}
 
 
 def _summarize_skipped(skipped: list[dict[str, Any]]) -> dict[str, Any]:
@@ -276,9 +283,10 @@ def _collect_leukemia_coco_domain_samples(
     *,
     class_mapping: dict[str, str],
     annotation_completeness: AnnotationCompleteness,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
     samples: list[dict[str, Any]] = []
-    skipped: list[dict[str, Any]] = []
+    issues = _empty_issues()
+    skipped = issues["degenerate_boxes"]
     annotation_paths = sorted(root.glob("*/json_labels/*.json"))
     if not annotation_paths:
         raise InputNotFoundError(f"LeukemiaAttri COCO json_labels not found under {root}")
@@ -288,13 +296,16 @@ def _collect_leukemia_coco_domain_samples(
         unified_split = (
             "val" if source_split == "test" else _split_from_relative(Path(source_split))
         )
-        image_root = root / domain / "Images" / source_split
-        if not image_root.exists():
-            image_root = root / domain / "images" / source_split
-        if not image_root.exists():
-            raise InputNotFoundError(
-                f"LeukemiaAttri images not found for {annotation_path}: expected Images/{source_split}"
+        image_root = _find_image_root(root / domain, source_split)
+        if image_root is None:
+            issues["unusable_files"].append(
+                {
+                    "source_file": str(annotation_path),
+                    "reason": "missing_image_dir",
+                    "expected": f"{domain}/Images/{source_split} (or images/{source_split})",
+                }
             )
+            continue
         raw = json.loads(annotation_path.read_text(encoding="utf-8"))
         image_rows = {int(row["id"]): row for row in raw.get("images", [])}
         categories = {int(row["id"]): str(row["name"]) for row in raw.get("categories", [])}
@@ -348,7 +359,13 @@ def _collect_leukemia_coco_domain_samples(
         for image_id, image_row in sorted(image_rows.items()):
             image_path = image_root / str(image_row["file_name"])
             if not image_path.exists():
-                raise InputNotFoundError(f"LeukemiaAttri image missing: {image_path}")
+                issues["missing_images"].append(
+                    {
+                        "source_file": str(annotation_path),
+                        "image_file": str(image_row["file_name"]),
+                    }
+                )
+                continue
             width = int(image_row["width"])
             height = int(image_row["height"])
             records = records_by_image[image_id]
@@ -386,7 +403,24 @@ def _collect_leukemia_coco_domain_samples(
                     "candidate_wbc_count": len(candidate_records),
                 }
             )
-    return samples, skipped
+    return samples, issues
+
+
+def _find_image_root(domain_path: Path, source_split: str) -> Path | None:
+    for base_name in ("Images", "images"):
+        candidate = domain_path / base_name / source_split
+        if candidate.is_dir():
+            return candidate
+    if not domain_path.is_dir():
+        return None
+    wanted_split = source_split.lower()
+    for base in sorted(path for path in domain_path.iterdir() if path.is_dir()):
+        if base.name.lower() != "images":
+            continue
+        for child in sorted(path for path in base.iterdir() if path.is_dir()):
+            if child.name.lower() == wanted_split:
+                return child
+    return None
 
 
 def _iter_images(image_root: Path) -> list[Path]:

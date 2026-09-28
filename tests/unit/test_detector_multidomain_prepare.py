@@ -320,6 +320,117 @@ def test_prepare_multidomain_yolo_dataset_skips_degenerate_coco_boxes_with_repor
     ).read_text(encoding="utf-8") == "0 0.500000 0.500000 0.200000 0.200000\n"
 
 
+def test_prepare_multidomain_yolo_dataset_skips_coco_split_without_images(
+    tmp_path: Path,
+) -> None:
+    from bloodfilm.detection.multidomain import prepare_multidomain_yolo_dataset
+
+    txl = tmp_path / "txl"
+    leukemia = tmp_path / "LeukemiaAttri"
+    _write_yolo_sample(txl, split="train", stem="txl_field", label_text="0 0.5 0.5 0.2 0.2\n")
+    good = leukemia / "H_100X_C1"
+    (good / "Images" / "train").mkdir(parents=True)
+    (good / "json_labels").mkdir(parents=True)
+    write_rgb_png(good / "Images" / "train" / "good.png", 20, 20, [(255, 255, 255)] * 400)
+    (good / "json_labels" / "train.json").write_text(
+        json.dumps(
+            {
+                "images": [{"id": 1, "file_name": "good.png", "width": 20, "height": 20}],
+                "categories": [{"id": 3, "name": "neutrophil"}],
+                "annotations": [{"id": 1, "image_id": 1, "category_id": 3, "bbox": [2, 2, 10, 10]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    bad = leukemia / "L_100X_C1"
+    (bad / "json_labels").mkdir(parents=True)
+    (bad / "json_labels" / "test.json").write_text(
+        json.dumps(
+            {
+                "images": [{"id": 1, "file_name": "ghost.png", "width": 20, "height": 20}],
+                "categories": [{"id": 3, "name": "neutrophil"}],
+                "annotations": [{"id": 1, "image_id": 1, "category_id": 3, "bbox": [2, 2, 10, 10]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = prepare_multidomain_yolo_dataset(
+        txl_pbc_root=txl,
+        leukemia_attri_root=leukemia,
+        output_root=tmp_path / "out",
+        manifest_output=tmp_path / "manifest.csv",
+        splits_output=tmp_path / "splits.csv",
+        leakage_output=tmp_path / "leakage.json",
+        report_output=tmp_path / "report.json",
+        txl_class_names={0: "wbc"},
+        txl_class_mapping={"wbc": "candidate_wbc"},
+        leukemia_class_names={},
+        leukemia_class_mapping={"neutrophil": "candidate_wbc"},
+        locked_hashes=set(),
+        leukemia_annotation_format="coco_domain",
+    )
+
+    assert result["status"] == "ok"
+    assert result["sample_count"] == 2
+    assert result["unusable_annotation_files_skipped"] == [
+        {
+            "source_file": str(bad / "json_labels" / "test.json"),
+            "reason": "missing_image_dir",
+            "expected": "L_100X_C1/Images/test (or images/test)",
+        }
+    ]
+
+
+def test_prepare_multidomain_yolo_dataset_skips_missing_image_files(
+    tmp_path: Path,
+) -> None:
+    from bloodfilm.detection.multidomain import prepare_multidomain_yolo_dataset
+
+    txl = tmp_path / "txl"
+    leukemia = tmp_path / "LeukemiaAttri"
+    _write_yolo_sample(txl, split="train", stem="txl_field", label_text="0 0.5 0.5 0.2 0.2\n")
+    domain = leukemia / "H_100X_C1"
+    (domain / "Images" / "train").mkdir(parents=True)
+    (domain / "json_labels").mkdir(parents=True)
+    write_rgb_png(domain / "Images" / "train" / "present.png", 20, 20, [(255, 255, 255)] * 400)
+    (domain / "json_labels" / "train.json").write_text(
+        json.dumps(
+            {
+                "images": [
+                    {"id": 1, "file_name": "present.png", "width": 20, "height": 20},
+                    {"id": 2, "file_name": "absent.png", "width": 20, "height": 20},
+                ],
+                "categories": [{"id": 3, "name": "neutrophil"}],
+                "annotations": [
+                    {"id": 1, "image_id": 1, "category_id": 3, "bbox": [2, 2, 10, 10]},
+                    {"id": 2, "image_id": 2, "category_id": 3, "bbox": [2, 2, 10, 10]},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = prepare_multidomain_yolo_dataset(
+        txl_pbc_root=txl,
+        leukemia_attri_root=leukemia,
+        output_root=tmp_path / "out",
+        manifest_output=tmp_path / "manifest.csv",
+        splits_output=tmp_path / "splits.csv",
+        leakage_output=tmp_path / "leakage.json",
+        report_output=tmp_path / "report.json",
+        txl_class_names={0: "wbc"},
+        txl_class_mapping={"wbc": "candidate_wbc"},
+        leukemia_class_names={},
+        leukemia_class_mapping={"neutrophil": "candidate_wbc"},
+        locked_hashes=set(),
+        leukemia_annotation_format="coco_domain",
+    )
+
+    assert result["status"] == "ok"
+    assert result["sample_count"] == 2
+    assert result["missing_image_files_skipped"]["total"] == 1
+
+
 def _write_yolo_sample(root: Path, *, split: str, stem: str, label_text: str) -> Path:
     image = root / "images" / split / f"{stem}.png"
     label = root / "labels" / split / f"{stem}.txt"
