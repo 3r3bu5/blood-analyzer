@@ -20,7 +20,8 @@ def test_kaggle_detector_recovery_notebook_documents_end_to_end_flow() -> None:
         "## 7. Build or attach unified YOLO data.yaml",
         "## 8. Dry-run the two training experiments",
         "## 9. Run training on GPU",
-        "## 11. Download these outputs back to the repo",
+        "## 10. Compare experiments without selecting",
+        "## 12. Download these outputs back to the repo",
     ]:
         assert heading in text
 
@@ -30,6 +31,9 @@ def test_kaggle_detector_recovery_notebook_contains_real_commands_and_guards() -
 
     for token in [
         "kaggle_train_detector_multidomain.py",
+        "kaggle_compare_detector_multidomain.py",
+        "RUN_COMPARISON = False",
+        "detector_multidomain_comparison.json",
         "kaggle_download_detector_data.py",
         "RUN_DATA_DOWNLOAD = False",
         "--leukemia-annotation-format coco_domain",

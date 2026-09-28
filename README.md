@@ -217,6 +217,14 @@ PYTHONPATH=src python3 -m bloodfilm.cli detector prepare \
 
 Map all reviewed LeukemiaAttri WBC classes to `candidate_wbc` as shown in `docs/M3_1_DETECTOR_RECOVERY.md`. This writes `data/detection/multidomain/data.yaml`, `data/manifests/detector_multidomain_manifest.csv`, `data/manifests/detector_multidomain_splits.csv`, and preparation/leakage reports under `outputs/reports/`.
 
+After Kaggle training, write a comparison-only report without selecting or packaging a detector:
+
+```bash
+PYTHONPATH=src python3 scripts/kaggle_compare_detector_multidomain.py
+```
+
+This writes `outputs/reports/detector_multidomain_comparison.json` with side-by-side Experiment A/B metrics and keeps `packageable` false.
+
 The committed M3 bundle reports precision `0.999`, recall `1.0`, mAP50 `0.995`, mAP50-95 `0.886`, and zero missed WBC boxes on the TXL-PBC test split at confidence threshold `0.25`. These are dataset metrics only, not clinical validation.
 
 ## End-to-End Field Analysis

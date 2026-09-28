@@ -136,7 +136,17 @@ PYTHONPATH=src python3 scripts/kaggle_train_detector_multidomain.py \
   --project-dir outputs/detector_multidomain
 ```
 
-Bring back the generated `outputs/detector_multidomain/` directory and `outputs/reports/detector_multidomain_kaggle_plan.json`. Do not package a selected detector until truthful evaluation reports and target-smoke reports exist.
+Compare the completed Experiment A/B outputs without selecting a winner:
+
+```bash
+PYTHONPATH=src python3 scripts/kaggle_compare_detector_multidomain.py \
+  --plan outputs/reports/detector_multidomain_kaggle_plan.json \
+  --output outputs/reports/detector_multidomain_comparison.json
+```
+
+The comparison report is side-by-side only. It sets `selection: null`, `packageable: false`, and keeps packaging blocked until target smoke evaluation and human review pass.
+
+Bring back the generated `outputs/detector_multidomain/` directory, `outputs/reports/detector_multidomain_kaggle_plan.json`, and `outputs/reports/detector_multidomain_comparison.json`. Do not package a selected detector until truthful evaluation reports and target-smoke reports exist.
 
 ## Not Yet Implemented
 

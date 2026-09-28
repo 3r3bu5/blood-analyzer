@@ -91,6 +91,8 @@ def build_kaggle_training_plan(
         "commands": commands,
         "artifacts_to_download": [
             str(output_root),
+            "outputs/reports/detector_multidomain_kaggle_plan.json",
+            "outputs/reports/detector_multidomain_comparison.json",
             "outputs/reports/detector_multidomain_evaluation.json",
             "outputs/reports/detector_target_smoke.json",
         ],
