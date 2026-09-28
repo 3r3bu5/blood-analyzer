@@ -209,6 +209,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="fully_annotated",
     )
     detector_prepare_multidomain.add_argument(
+        "--leukemia-annotation-format",
+        choices=["yolo", "coco_domain"],
+        default="yolo",
+    )
+    detector_prepare_multidomain.add_argument(
         "--locked-target-hashes",
         type=Path,
         default=None,
@@ -642,6 +647,7 @@ def _detector_prepare_multidomain(args: argparse.Namespace) -> int:
         locked_hashes=_read_hashes(args.locked_target_hashes),
         txl_annotation_completeness=args.txl_annotation_completeness,
         leukemia_annotation_completeness=args.leukemia_annotation_completeness,
+        leukemia_annotation_format=args.leukemia_annotation_format,
     )
     print(report["data_yaml"])
     return 0

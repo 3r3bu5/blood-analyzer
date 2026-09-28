@@ -15,8 +15,8 @@ def test_kaggle_detector_recovery_notebook_documents_end_to_end_flow() -> None:
     for heading in [
         "# 05 - Kaggle M3.1 detector recovery",
         "## 0. Required Kaggle inputs",
-        "## 4. Locate datasets",
-        "## 6. Audit LeukemiaAttri once layout is known",
+        "## 4. Locate or download datasets",
+        "## 6. Inspect LeukemiaAttri COCO-domain layout",
         "## 7. Build or attach unified YOLO data.yaml",
         "## 8. Dry-run the two training experiments",
         "## 9. Run training on GPU",
@@ -30,8 +30,9 @@ def test_kaggle_detector_recovery_notebook_contains_real_commands_and_guards() -
 
     for token in [
         "kaggle_train_detector_multidomain.py",
-        "detector audit",
-        "leukemia_attri_audit.json",
+        "kaggle_download_detector_data.py",
+        "RUN_DATA_DOWNLOAD = False",
+        "--leukemia-annotation-format coco_domain",
         "data/detection/multidomain/data.yaml",
         "RUN_TRAINING = False",
         "models/txl-pbc-yolo26n-v0.1/weights.pt",

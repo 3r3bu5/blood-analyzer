@@ -86,11 +86,30 @@ PYTHONPATH=src python3 -m bloodfilm.cli detector prepare \
   --report-output outputs/reports/detector_multidomain_preparation.json \
   --txl-class-names "0=wbc" \
   --txl-class-mapping "wbc=candidate_wbc" \
-  --leukemia-class-names "0=Neutrophil" \
-  --leukemia-class-mapping "Neutrophil=candidate_wbc"
+  --leukemia-annotation-format coco_domain \
+  --leukemia-class-mapping "myeloblast=candidate_wbc" \
+  --leukemia-class-mapping "lymphoblast=candidate_wbc" \
+  --leukemia-class-mapping "neutrophil=candidate_wbc" \
+  --leukemia-class-mapping "atypical lymphocyte=candidate_wbc" \
+  --leukemia-class-mapping "promonocyte=candidate_wbc" \
+  --leukemia-class-mapping "monoblast=candidate_wbc" \
+  --leukemia-class-mapping "lymphocyte=candidate_wbc" \
+  --leukemia-class-mapping "myelocyte=candidate_wbc" \
+  --leukemia-class-mapping "abnormal promyelocyte=candidate_wbc" \
+  --leukemia-class-mapping "monocyte=candidate_wbc" \
+  --leukemia-class-mapping "metamyelocyte=candidate_wbc" \
+  --leukemia-class-mapping "eosinophil=candidate_wbc" \
+  --leukemia-class-mapping "basophil=candidate_wbc" \
+  --leukemia-class-mapping "none=artifact"
 ```
 
-Add every reviewed LeukemiaAttri class ID/name with `--leukemia-class-names` and map genuine WBC classes to `candidate_wbc`. Use `--locked-target-hashes` when target smoke or validation images have known SHA256 hashes that must be excluded from training.
+The Kaggle notebook can download TXL-PBC and the full public LeukemiaAttri Google Drive folder into Kaggle working storage via:
+
+```bash
+PYTHONPATH=src python3 scripts/kaggle_download_detector_data.py
+```
+
+Use `--locked-target-hashes` when target smoke or validation images have known SHA256 hashes that must be excluded from training.
 
 Run all available checks:
 

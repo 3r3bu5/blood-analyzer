@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import shutil
 from collections import Counter
 from pathlib import Path
@@ -9,6 +10,7 @@ from typing import Any
 from bloodfilm.detection.annotations import (
     AnnotationCompleteness,
     AnnotationRecord,
+    Box,
     parse_yolo_annotations,
     require_fully_annotated,
 )
@@ -55,6 +57,7 @@ def prepare_multidomain_yolo_dataset(
     locked_hashes: set[str],
     txl_annotation_completeness: str = "fully_annotated",
     leukemia_annotation_completeness: str = "fully_annotated",
+    leukemia_annotation_format: str = "yolo",
 ) -> dict[str, Any]:
     """Create a unified candidate-WBC YOLO dataset from TXL-PBC and LeukemiaAttri."""
     require_fully_annotated(txl_annotation_completeness)
@@ -69,13 +72,12 @@ def prepare_multidomain_yolo_dataset(
             class_mapping=txl_class_mapping,
             annotation_completeness=AnnotationCompleteness(txl_annotation_completeness),
         ),
-        *_collect_source_samples(
+        *_collect_leukemia_samples(
             Path(leukemia_attri_root),
-            source_dataset="LeukemiaAttri",
-            output_prefix="leukemia_attri",
             class_names=leukemia_class_names,
             class_mapping=leukemia_class_mapping,
             annotation_completeness=AnnotationCompleteness(leukemia_annotation_completeness),
+            annotation_format=leukemia_annotation_format,
         ),
     ]
     if not samples:
@@ -148,6 +150,32 @@ def prepare_multidomain_yolo_dataset(
     }
     write_json(report_output, report)
     return report
+
+
+def _collect_leukemia_samples(
+    root: Path,
+    *,
+    class_names: dict[int, str],
+    class_mapping: dict[str, str],
+    annotation_completeness: AnnotationCompleteness,
+    annotation_format: str,
+) -> list[dict[str, Any]]:
+    if annotation_format == "yolo":
+        return _collect_source_samples(
+            root,
+            source_dataset="LeukemiaAttri",
+            output_prefix="leukemia_attri",
+            class_names=class_names,
+            class_mapping=class_mapping,
+            annotation_completeness=annotation_completeness,
+        )
+    if annotation_format == "coco_domain":
+        return _collect_leukemia_coco_domain_samples(
+            root,
+            class_mapping=class_mapping,
+            annotation_completeness=annotation_completeness,
+        )
+    raise ConfigError(f"Unsupported LeukemiaAttri annotation format: {annotation_format}")
 
 
 def _collect_source_samples(
@@ -224,6 +252,116 @@ def _collect_source_samples(
             f"{source_dataset} has images without labels; fully annotated YOLO preparation requires labels for every image: "
             + ", ".join(missing_labels[:10])
         )
+    return samples
+
+
+def _collect_leukemia_coco_domain_samples(
+    root: Path,
+    *,
+    class_mapping: dict[str, str],
+    annotation_completeness: AnnotationCompleteness,
+) -> list[dict[str, Any]]:
+    samples: list[dict[str, Any]] = []
+    annotation_paths = sorted(root.glob("*/json_labels/*.json"))
+    if not annotation_paths:
+        raise InputNotFoundError(f"LeukemiaAttri COCO json_labels not found under {root}")
+    for annotation_path in annotation_paths:
+        domain = annotation_path.parents[1].name
+        source_split = annotation_path.stem
+        unified_split = (
+            "val" if source_split == "test" else _split_from_relative(Path(source_split))
+        )
+        image_root = root / domain / "Images" / source_split
+        if not image_root.exists():
+            image_root = root / domain / "images" / source_split
+        if not image_root.exists():
+            raise InputNotFoundError(
+                f"LeukemiaAttri images not found for {annotation_path}: expected Images/{source_split}"
+            )
+        raw = json.loads(annotation_path.read_text(encoding="utf-8"))
+        image_rows = {int(row["id"]): row for row in raw.get("images", [])}
+        categories = {int(row["id"]): str(row["name"]) for row in raw.get("categories", [])}
+        unmapped_categories = sorted(set(categories.values()) - set(class_mapping))
+        if unmapped_categories:
+            raise ConfigError(
+                f"LeukemiaAttri COCO file has unmapped COCO categories in {annotation_path}: "
+                + ", ".join(unmapped_categories)
+            )
+        records_by_image: dict[int, list[AnnotationRecord]] = {
+            image_id: [] for image_id in image_rows
+        }
+        for annotation in raw.get("annotations", []):
+            image_id = int(annotation["image_id"])
+            image_row = image_rows.get(image_id)
+            if image_row is None:
+                raise ConfigError(
+                    f"{annotation_path} references unknown image_id {annotation['image_id']}"
+                )
+            bbox = annotation.get("bbox")
+            if not isinstance(bbox, list) or len(bbox) != 4:
+                raise ConfigError(
+                    f"{annotation_path} has malformed bbox for annotation {annotation.get('id')}"
+                )
+            x, y, width, height = [float(value) for value in bbox]
+            if width <= 0 or height <= 0:
+                raise ConfigError(
+                    f"{annotation_path} has non-positive bbox for annotation {annotation.get('id')}"
+                )
+            source_class = categories.get(int(annotation["category_id"]), "unknown")
+            canonical_class = class_mapping.get(source_class, "unknown")
+            records_by_image[image_id].append(
+                AnnotationRecord(
+                    box=Box(x1=x, y1=y, x2=x + width, y2=y + height),
+                    source_class=source_class,
+                    canonical_class=canonical_class,
+                    source_dataset="LeukemiaAttri",
+                    metadata={"annotation_id": annotation.get("id")},
+                    warnings=[]
+                    if canonical_class != "unknown"
+                    else [f"unmapped_source_class:{source_class}"],
+                )
+            )
+        for image_id, image_row in sorted(image_rows.items()):
+            image_path = image_root / str(image_row["file_name"])
+            if not image_path.exists():
+                raise InputNotFoundError(f"LeukemiaAttri image missing: {image_path}")
+            width = int(image_row["width"])
+            height = int(image_row["height"])
+            records = records_by_image[image_id]
+            candidate_records = [
+                record for record in records if record.canonical_class == "candidate_wbc"
+            ]
+            sample_id = f"leukemia_attri__{domain}__{source_split}__{Path(str(image_row['file_name'])).stem}"
+            source_classes = sorted({record.source_class for record in records})
+            canonical_classes = sorted({record.canonical_class for record in candidate_records})
+            samples.append(
+                {
+                    "sample_id": sample_id,
+                    "image_path": str(image_path),
+                    "label_path": str(annotation_path),
+                    "image_suffix": image_path.suffix,
+                    "image_sha256": sha256_file(image_path),
+                    "source_dataset": "LeukemiaAttri",
+                    "source_split": source_split,
+                    "unified_split": unified_split,
+                    "patient_id": "",
+                    "slide_id": "",
+                    "acquisition_domain": domain,
+                    "microscope": domain.split("_")[0] if "_" in domain else "",
+                    "camera": domain.split("_")[-1] if "_" in domain else "",
+                    "magnification": domain.split("_")[1] if len(domain.split("_")) >= 2 else "",
+                    "annotation_completeness": annotation_completeness.value,
+                    "source_classes": ";".join(source_classes),
+                    "canonical_classes": ";".join(canonical_classes),
+                    "locked_for_validation": "false",
+                    "license_id": "verify_before_use",
+                    "label_text": "".join(
+                        _record_to_yolo_line(record, image_width=width, image_height=height)
+                        for record in candidate_records
+                    ),
+                    "candidate_wbc_count": len(candidate_records),
+                }
+            )
     return samples
 
 

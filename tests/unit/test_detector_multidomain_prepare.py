@@ -138,6 +138,109 @@ def test_prepare_multidomain_yolo_dataset_rejects_missing_labels(
         )
 
 
+def test_prepare_multidomain_yolo_dataset_accepts_leukemia_coco_domain_layout(
+    tmp_path: Path,
+) -> None:
+    from bloodfilm.detection.multidomain import prepare_multidomain_yolo_dataset
+
+    txl = tmp_path / "txl"
+    leukemia = tmp_path / "LeukemiaAttri"
+    _write_yolo_sample(txl, split="train", stem="txl_field", label_text="0 0.5 0.5 0.2 0.2\n")
+    image = leukemia / "H_100X_C1" / "Images" / "test" / "leuk_field.png"
+    image.parent.mkdir(parents=True)
+    write_rgb_png(image, 100, 100, [(255, 255, 255)] * 10000)
+    annotation = leukemia / "H_100X_C1" / "json_labels" / "test.json"
+    annotation.parent.mkdir(parents=True)
+    annotation.write_text(
+        json.dumps(
+            {
+                "images": [{"id": 1, "file_name": "leuk_field.png", "width": 100, "height": 100}],
+                "categories": [
+                    {"id": 3, "name": "neutrophil"},
+                    {"id": 14, "name": "none"},
+                ],
+                "annotations": [
+                    {"id": 10, "image_id": 1, "category_id": 3, "bbox": [40, 40, 20, 20]},
+                    {"id": 11, "image_id": 1, "category_id": 14, "bbox": [0, 0, 10, 10]},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    prepare_multidomain_yolo_dataset(
+        txl_pbc_root=txl,
+        leukemia_attri_root=leukemia,
+        output_root=tmp_path / "out",
+        manifest_output=tmp_path / "manifest.csv",
+        splits_output=tmp_path / "splits.csv",
+        leakage_output=tmp_path / "leakage.json",
+        report_output=tmp_path / "report.json",
+        txl_class_names={0: "wbc"},
+        txl_class_mapping={"wbc": "candidate_wbc"},
+        leukemia_class_names={},
+        leukemia_class_mapping={"neutrophil": "candidate_wbc", "none": "artifact"},
+        locked_hashes=set(),
+        leukemia_annotation_format="coco_domain",
+    )
+
+    assert (
+        tmp_path / "out" / "labels" / "val" / "leukemia_attri__H_100X_C1__test__leuk_field.txt"
+    ).read_text(encoding="utf-8") == "0 0.500000 0.500000 0.200000 0.200000\n"
+    rows = list(
+        csv.DictReader((tmp_path / "manifest.csv").read_text(encoding="utf-8").splitlines())
+    )
+    leukemia_row = next(row for row in rows if row["source_dataset"] == "LeukemiaAttri")
+    assert leukemia_row["source_split"] == "test"
+    assert leukemia_row["unified_split"] == "val"
+    assert leukemia_row["acquisition_domain"] == "H_100X_C1"
+
+
+def test_prepare_multidomain_yolo_dataset_rejects_unmapped_leukemia_coco_classes(
+    tmp_path: Path,
+) -> None:
+    from bloodfilm.detection.multidomain import prepare_multidomain_yolo_dataset
+    from bloodfilm.errors import ConfigError
+
+    txl = tmp_path / "txl"
+    leukemia = tmp_path / "LeukemiaAttri"
+    _write_yolo_sample(txl, split="train", stem="txl_field", label_text="0 0.5 0.5 0.2 0.2\n")
+    image = leukemia / "H_100X_C1" / "Images" / "test" / "leuk_field.png"
+    image.parent.mkdir(parents=True)
+    write_rgb_png(image, 100, 100, [(255, 255, 255)] * 10000)
+    annotation = leukemia / "H_100X_C1" / "json_labels" / "test.json"
+    annotation.parent.mkdir(parents=True)
+    annotation.write_text(
+        json.dumps(
+            {
+                "images": [{"id": 1, "file_name": "leuk_field.png", "width": 100, "height": 100}],
+                "categories": [{"id": 3, "name": "neutrophil"}],
+                "annotations": [
+                    {"id": 10, "image_id": 1, "category_id": 3, "bbox": [40, 40, 20, 20]}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="unmapped COCO categories"):
+        prepare_multidomain_yolo_dataset(
+            txl_pbc_root=txl,
+            leukemia_attri_root=leukemia,
+            output_root=tmp_path / "out",
+            manifest_output=tmp_path / "manifest.csv",
+            splits_output=tmp_path / "splits.csv",
+            leakage_output=tmp_path / "leakage.json",
+            report_output=tmp_path / "report.json",
+            txl_class_names={0: "wbc"},
+            txl_class_mapping={"wbc": "candidate_wbc"},
+            leukemia_class_names={},
+            leukemia_class_mapping={},
+            locked_hashes=set(),
+            leukemia_annotation_format="coco_domain",
+        )
+
+
 def test_prepare_multidomain_yolo_dataset_blocks_locked_target_training_leakage(
     tmp_path: Path,
 ) -> None:
