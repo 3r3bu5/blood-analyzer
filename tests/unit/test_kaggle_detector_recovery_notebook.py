@@ -36,6 +36,7 @@ def test_kaggle_detector_recovery_notebook_contains_real_commands_and_guards() -
         "detector_multidomain_comparison.json",
         "kaggle_download_detector_data.py",
         "RUN_DATA_DOWNLOAD = False",
+        "LEUKEMIA_ZIP_URLS",
         "--leukemia-annotation-format coco_domain",
         "data/detection/multidomain/data.yaml",
         "RUN_TRAINING = False",

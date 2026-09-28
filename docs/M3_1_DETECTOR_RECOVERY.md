@@ -103,11 +103,13 @@ PYTHONPATH=src python3 -m bloodfilm.cli detector prepare \
   --leukemia-class-mapping "none=artifact"
 ```
 
-The Kaggle notebook can download TXL-PBC and the full public LeukemiaAttri Google Drive folder into Kaggle working storage via:
+The Kaggle notebook can download TXL-PBC and LeukemiaAttri into Kaggle working storage via:
 
 ```bash
 PYTHONPATH=src python3 scripts/kaggle_download_detector_data.py
 ```
+
+Recommended: paste Google Takeout zip link(s) for the LeukemiaAttri folder into `LEUKEMIA_ZIP_URLS` in the notebook instead of per-file `gdown`. The script also accepts `--leukemia-zip-url <url>` (repeat per Takeout part) or `LEUKEMIA_ZIP_URLS` with one URL per line. Zips are extracted and normalized to the `DOMAIN/Images/...` + `DOMAIN/json_labels/...` tree. Keep signed Takeout URLs in the Kaggle session only; do not commit them.
 
 Use `--locked-target-hashes` when target smoke or validation images have known SHA256 hashes that must be excluded from training.
 

@@ -83,3 +83,59 @@ def test_prepare_leukemia_attri_raises_helpful_error_after_exhausted_retries(
             attempts=2,
             retry_sleep_seconds=0.0,
         )
+
+
+def test_prepare_leukemia_attri_uses_takeout_zip_instead_of_gdown(tmp_path: Path) -> None:
+    import zipfile
+
+    source = tmp_path / "source"
+    domain_images = source / "LeukemiaAttri_Dataset" / "H_100X_C1" / "Images" / "test"
+    domain_labels = source / "LeukemiaAttri_Dataset" / "H_100X_C1" / "json_labels"
+    domain_images.mkdir(parents=True)
+    domain_labels.mkdir(parents=True)
+    (domain_images / "field.png").write_bytes(b"fake-png")
+    (domain_labels / "test.json").write_text('{"images": []}', encoding="utf-8")
+    zip_path = tmp_path / "takeout.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        for path in sorted(source.rglob("*")):
+            if path.is_file():
+                archive.write(path, path.relative_to(source))
+
+    report = download_module._prepare_leukemia_attri(
+        url="https://example.invalid/folder",
+        output=tmp_path / "LeukemiaAttri",
+        dry_run=False,
+        zip_urls=[zip_path.as_uri()],
+    )
+
+    assert report["status"] == "ok"
+    assert report["method"] == "takeout_zip"
+    assert report["json_label_count"] == 1
+    assert report["image_count"] == 1
+    assert (tmp_path / "LeukemiaAttri" / "H_100X_C1" / "json_labels" / "test.json").exists()
+
+
+def test_extract_zip_into_rejects_path_traversal(tmp_path: Path) -> None:
+    import zipfile
+
+    zip_path = tmp_path / "evil.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("../evil.txt", "evil")
+
+    with pytest.raises(RuntimeError, match="unsafe path"):
+        download_module._extract_zip_into(zip_path, tmp_path / "out")
+    assert not (tmp_path / "evil.txt").exists()
+
+
+def test_env_zip_urls_parses_multiline_and_comma_lists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "LEUKEMIA_ZIP_URLS",
+        "https://example.invalid/a.zip,\nhttps://example.invalid/b.zip\nhttps://example.invalid/a.zip",
+    )
+
+    assert download_module._env_zip_urls() == [
+        "https://example.invalid/a.zip",
+        "https://example.invalid/b.zip",
+    ]

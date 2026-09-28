@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
 import time
+import urllib.request
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -31,12 +34,14 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=args.dry_run,
         )
     if not args.skip_leukemia:
+        zip_urls = list(args.leukemia_zip_url) or _env_zip_urls()
         report["leukemia_attri"] = _prepare_leukemia_attri(
             url=args.leukemia_url,
             output=args.leukemia_output,
             dry_run=args.dry_run,
             attempts=args.leukemia_attempts,
             retry_sleep_seconds=args.leukemia_retry_sleep,
+            zip_urls=zip_urls,
         )
     _write_json(args.report_output, report)
     print(args.report_output)
@@ -50,6 +55,16 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--txl-url", default=DEFAULT_TXL_URL)
     parser.add_argument("--txl-output", type=Path, default=Path("data/raw/TXL-PBC"))
     parser.add_argument("--leukemia-url", default=DEFAULT_LEUKEMIA_URL)
+    parser.add_argument(
+        "--leukemia-zip-url",
+        action="append",
+        default=[],
+        help=(
+            "Google Takeout zip URL for the LeukemiaAttri folder. Repeat for each "
+            "Takeout part, or set LEUKEMIA_ZIP_URLS (one URL per line). "
+            "When given, the zip path is used instead of per-file gdown."
+        ),
+    )
     parser.add_argument("--leukemia-output", type=Path, default=Path("data/raw/LeukemiaAttri"))
     parser.add_argument(
         "--report-output",
@@ -110,13 +125,24 @@ def _prepare_leukemia_attri(
     dry_run: bool,
     attempts: int = 8,
     retry_sleep_seconds: float = 60.0,
+    zip_urls: list[str] | None = None,
 ) -> dict[str, Any]:
+    urls = [item for item in (zip_urls or []) if item.strip()]
     if dry_run:
+        if urls:
+            return {
+                "status": "dry_run",
+                "output": str(output),
+                "method": "takeout_zip",
+                "zip_count": len(urls),
+            }
         return {
             "status": "dry_run",
             "output": str(output),
             "command": _gdown_folder_command(url, output, remaining_ok=True),
         }
+    if urls:
+        return _prepare_leukemia_from_zips(urls=urls, output=output)
     _ensure_gdown()
     command = _gdown_folder_command(url, output, remaining_ok=_gdown_supports_remaining_ok())
     output.mkdir(parents=True, exist_ok=True)
@@ -184,6 +210,109 @@ def _gdown_supports_remaining_ok() -> bool:
         return True
     output = (result.stdout or "") + (result.stderr or "")
     return "--remaining-ok" in output
+
+
+def _env_zip_urls() -> list[str]:
+    raw = os.environ.get("LEUKEMIA_ZIP_URLS", "")
+    urls: list[str] = []
+    for chunk in raw.replace(",", "\n").splitlines():
+        cleaned = chunk.strip().strip("'\"")
+        if cleaned and cleaned not in urls:
+            urls.append(cleaned)
+    return urls
+
+
+def _prepare_leukemia_from_zips(*, urls: list[str], output: Path) -> dict[str, Any]:
+    download_dir = output.parent / f"{output.name}_takeout_zips"
+    download_dir.mkdir(parents=True, exist_ok=True)
+    output.mkdir(parents=True, exist_ok=True)
+    parts: list[str] = []
+    for index, url in enumerate(urls, start=1):
+        filename = _zip_filename(url, index)
+        destination = download_dir / filename
+        if destination.exists() and destination.stat().st_size > 0:
+            parts.append(str(destination))
+            continue
+        _download_url_to_file(url, destination)
+        parts.append(str(destination))
+    for part in parts:
+        _extract_zip_into(Path(part), output)
+    return {
+        "status": "ok",
+        "method": "takeout_zip",
+        "output": str(output),
+        "zip_count": len(parts),
+        "zip_parts": parts,
+        "json_label_count": len(list(output.glob("*/json_labels/*.json"))),
+        "image_count": len(list(output.glob("*/Images/*/*")))
+        + len(list(output.glob("*/images/*/*"))),
+        "zip_label_count": len(list(output.glob("*/*.zip"))),
+    }
+
+
+def _zip_filename(url: str, index: int) -> str:
+    stem = url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
+    if not stem.lower().endswith(".zip") or len(stem) > 120:
+        stem = f"leukemia_attri_takeout_part{index}.zip"
+    return stem
+
+
+def _download_url_to_file(url: str, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(request, timeout=120) as response, destination.open("wb") as handle:
+        shutil.copyfileobj(response, handle, length=1024 * 1024)
+    if destination.stat().st_size == 0:
+        raise RuntimeError(f"Downloaded zip is empty: {destination}")
+
+
+def _extract_zip_into(zip_path: Path, output: Path) -> None:
+    if not zipfile.is_zipfile(zip_path):
+        raise RuntimeError(f"Not a zip archive: {zip_path}")
+    with zipfile.ZipFile(zip_path) as archive:
+        _assert_zip_members_safe(archive)
+        archive.extractall(output)
+    _normalize_extracted_tree(output)
+
+
+def _assert_zip_members_safe(archive: zipfile.ZipFile) -> None:
+    for info in archive.infolist():
+        name = info.filename
+        if not name or name.endswith("/"):
+            continue
+        mode = (info.external_attr >> 16) & 0o170000
+        if mode == 0o120000:
+            raise RuntimeError(f"Zip archive contains a symlink, refusing: {name}")
+        normalized = name.replace("\\", "/")
+        if normalized.startswith(("/", "../")) or "/../" in normalized:
+            raise RuntimeError(f"Zip archive contains an unsafe path, refusing: {name}")
+        first = normalized.split("/", 1)[0]
+        if first.endswith(":") or first == "..":
+            raise RuntimeError(f"Zip archive contains an unsafe path, refusing: {name}")
+
+
+def _normalize_extracted_tree(output: Path) -> None:
+    for _ in range(3):
+        if list(output.glob("*/json_labels/*.json")):
+            return
+        subdirs = sorted(path for path in output.iterdir() if path.is_dir())
+        if len(subdirs) != 1:
+            return
+        inner = subdirs[0]
+        for child in sorted(inner.iterdir()):
+            target = output / child.name
+            if target.exists():
+                if target.is_dir() and child.is_dir():
+                    for nested in sorted(child.iterdir()):
+                        shutil.move(str(nested), target / nested.name)
+                else:
+                    continue
+            else:
+                shutil.move(str(child), target)
+        try:
+            inner.rmdir()
+        except OSError:
+            return
 
 
 def _ensure_git_lfs() -> None:
