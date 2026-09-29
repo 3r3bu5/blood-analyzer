@@ -32,5 +32,6 @@
   "project_dir": "outputs/detector_multidomain",
   "research_only": true,
   "schema_version": 1,
-  "status": "planned_not_trained"
+  "status": "planned_not_trained",
+  "train_skipped": false
 }
