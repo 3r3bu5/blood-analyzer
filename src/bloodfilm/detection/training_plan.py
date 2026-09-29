@@ -21,6 +21,7 @@ def build_kaggle_training_plan(
     config_path: Path | str,
     data_yaml: Path | str,
     project_dir: Path | str,
+    experiment: str = "all",
     epochs: int | None = None,
     image_size: int | None = None,
     batch_size: int | None = None,
@@ -29,7 +30,8 @@ def build_kaggle_training_plan(
     config = load_config_document(config_path)
     detector = _object(config, "detector")
     training = _object(config, "training")
-    experiments = _experiments(config)
+    selected_experiment = experiment
+    experiments = _selected_experiments(config, experiment=selected_experiment)
     selected_epochs = int(epochs if epochs is not None else training.get("epochs", 100))
     selected_image_size = int(
         image_size if image_size is not None else detector.get("image_size", 640)
@@ -53,11 +55,15 @@ def build_kaggle_training_plan(
         ]
         if selected_batch is not None:
             train_parts.append(f"batch={int(selected_batch)}")
+        expected_best_weights = output_root / experiment.output_name / "weights" / "best.pt"
+        yolo_runs_best_weights = (
+            Path("runs") / "detect" / output_root / experiment.output_name / "weights" / "best.pt"
+        )
         val_parts = [
             "yolo",
             "detect",
             "val",
-            f"model={output_root / experiment.output_name / 'weights' / 'best.pt'}",
+            f"model={expected_best_weights}",
             f"data={data_yaml}",
             "split=test",
             f"imgsz={selected_image_size}",
@@ -72,9 +78,8 @@ def build_kaggle_training_plan(
                 "initial_weights": experiment.initial_weights,
                 "train_command": " ".join(str(part) for part in train_parts),
                 "val_command": " ".join(str(part) for part in val_parts),
-                "expected_best_weights": str(
-                    output_root / experiment.output_name / "weights" / "best.pt"
-                ),
+                "expected_best_weights": str(expected_best_weights),
+                "yolo_runs_best_weights": str(yolo_runs_best_weights),
                 "expected_test_dir": str(output_root / f"{experiment.output_name}-test"),
             }
         )
@@ -85,6 +90,7 @@ def build_kaggle_training_plan(
         "config": str(config_path),
         "data_yaml": str(data_yaml),
         "project_dir": str(project_dir),
+        "experiment": selected_experiment,
         "epochs": selected_epochs,
         "image_size": selected_image_size,
         "batch_size": selected_batch,
@@ -137,6 +143,19 @@ def _experiments(config: dict[str, Any]) -> list[DetectorExperiment]:
             )
         )
     return experiments
+
+
+def _selected_experiments(config: dict[str, Any], *, experiment: str) -> list[DetectorExperiment]:
+    experiments = _experiments(config)
+    if experiment == "all":
+        return experiments
+    selected = [item for item in experiments if item.name == experiment]
+    if not selected:
+        names = [item.name for item in experiments]
+        raise ConfigError(
+            f"Unknown detector experiment {experiment!r}; expected all or one of {names}"
+        )
+    return selected
 
 
 def _experiment_output_name(name: str) -> str:

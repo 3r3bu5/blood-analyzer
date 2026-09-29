@@ -14,6 +14,12 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=Path("configs/detector_multidomain.yaml"))
     parser.add_argument("--data-yaml", type=Path, required=True)
     parser.add_argument("--project-dir", type=Path, default=Path("outputs/detector_multidomain"))
+    parser.add_argument(
+        "--experiment",
+        choices=["all", "A_finetune_txl_pbc", "B_clean_pretrained"],
+        default="all",
+        help="Run both experiments by default, or only one selected experiment.",
+    )
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--imgsz", type=int, default=None)
     parser.add_argument("--batch", type=int, default=None)
@@ -29,6 +35,7 @@ def main() -> int:
         config_path=args.config,
         data_yaml=args.data_yaml,
         project_dir=args.project_dir,
+        experiment=args.experiment,
         epochs=args.epochs,
         image_size=args.imgsz,
         batch_size=args.batch,
@@ -42,8 +49,20 @@ def main() -> int:
         return 0
     for command in plan["commands"]:
         subprocess.run(command["train_command"].split(), check=True)
-        subprocess.run(command["val_command"].split(), check=True)
+        val_command = _val_command_with_existing_weights(command)
+        subprocess.run(val_command.split(), check=True)
     return 0
+
+
+def _val_command_with_existing_weights(command: dict[str, object]) -> str:
+    val_command = str(command["val_command"])
+    planned_weights = str(command["expected_best_weights"])
+    if Path(planned_weights).exists():
+        return val_command
+    yolo_runs_weights = str(command.get("yolo_runs_best_weights", ""))
+    if yolo_runs_weights and Path(yolo_runs_weights).exists():
+        return val_command.replace(f"model={planned_weights}", f"model={yolo_runs_weights}")
+    return val_command
 
 
 if __name__ == "__main__":

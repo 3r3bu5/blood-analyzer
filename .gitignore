@@ -11,3 +11,5 @@ __pycache__/
 /outputs/*
 !/outputs/.gitkeep
 !/outputs/reports/
+/kaggle-output/
+/runs/

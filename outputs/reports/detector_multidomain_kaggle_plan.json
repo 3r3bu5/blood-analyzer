@@ -1,0 +1,36 @@
+{
+  "artifacts_to_download": [
+    "outputs/detector_multidomain",
+    "outputs/reports/detector_multidomain_kaggle_plan.json",
+    "outputs/reports/detector_multidomain_comparison.json",
+    "outputs/reports/detector_multidomain_evaluation.json",
+    "outputs/reports/detector_target_smoke.json"
+  ],
+  "batch_size": null,
+  "blocked_until": [
+    "LeukemiaAttri license and source layout are verified",
+    "unified fully annotated YOLO data.yaml exists",
+    "CUDA runner is available"
+  ],
+  "commands": [
+    {
+      "expected_best_weights": "outputs/detector_multidomain/wbc-detector-multidomain-yolo26n-b/weights/best.pt",
+      "expected_test_dir": "outputs/detector_multidomain/wbc-detector-multidomain-yolo26n-b-test",
+      "experiment": "B_clean_pretrained",
+      "initial_weights": "yolo26n.pt",
+      "purpose": "test whether TXL-PBC pretraining learned harmful shortcuts",
+      "train_command": "yolo detect train model=yolo26n.pt data=data/detection/multidomain/data.yaml imgsz=640 epochs=100 project=outputs/detector_multidomain name=wbc-detector-multidomain-yolo26n-b exist_ok=True seed=42",
+      "val_command": "yolo detect val model=outputs/detector_multidomain/wbc-detector-multidomain-yolo26n-b/weights/best.pt data=data/detection/multidomain/data.yaml split=test imgsz=640 project=outputs/detector_multidomain name=wbc-detector-multidomain-yolo26n-b-test exist_ok=True",
+      "yolo_runs_best_weights": "runs/detect/outputs/detector_multidomain/wbc-detector-multidomain-yolo26n-b/weights/best.pt"
+    }
+  ],
+  "config": "configs/detector_multidomain.yaml",
+  "data_yaml": "data/detection/multidomain/data.yaml",
+  "epochs": 100,
+  "experiment": "B_clean_pretrained",
+  "image_size": 640,
+  "project_dir": "outputs/detector_multidomain",
+  "research_only": true,
+  "schema_version": 1,
+  "status": "planned_not_trained"
+}
