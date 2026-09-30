@@ -57,6 +57,16 @@ class DetectorConfig:
 
 
 @dataclass(frozen=True)
+class TilingConfig:
+    enabled: bool = False
+    tile_size: int = 384
+    overlap_ratio: float = 0.20
+    tile_core_ownership: bool = True
+    containment_deduplication: bool = True
+    profile: str | None = None
+
+
+@dataclass(frozen=True)
 class AppConfig:
     project: ProjectConfig = field(default_factory=ProjectConfig)
     quality: QualityConfig = field(default_factory=QualityConfig)
@@ -65,6 +75,8 @@ class AppConfig:
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     registry: RegistryConfig = field(default_factory=RegistryConfig)
     detector: DetectorConfig = field(default_factory=DetectorConfig)
+    tiling: TilingConfig = field(default_factory=TilingConfig)
+    detector_profile: str | None = None
 
 
 def load_config(path: Path | str) -> AppConfig:
@@ -78,6 +90,8 @@ def load_config(path: Path | str) -> AppConfig:
         dataset=_dataset_config(raw.get("dataset", {})),
         registry=_registry_config(raw.get("registry", {})),
         detector=_detector_config(raw.get("detector", {})),
+        tiling=_tiling_config(raw.get("tiling", {})),
+        detector_profile=_optional_str(raw.get("detector_profile")),
     )
 
 
@@ -165,8 +179,40 @@ def _detector_config(raw: object) -> DetectorConfig:
     )
 
 
+def _tiling_config(raw: object) -> TilingConfig:
+    data = _coerce_object(raw, "tiling")
+    tile_size = int(data.get("tile_size", 384))
+    overlap_ratio = float(data.get("overlap_ratio", 0.20))
+    if tile_size <= 0:
+        raise ConfigError("tiling.tile_size must be positive")
+    if not 0.0 <= overlap_ratio < 1.0:
+        raise ConfigError("tiling.overlap_ratio must be in [0, 1)")
+    return TilingConfig(
+        enabled=_coerce_bool(data.get("enabled", False), "tiling.enabled"),
+        tile_size=tile_size,
+        overlap_ratio=overlap_ratio,
+        tile_core_ownership=_coerce_bool(
+            data.get("tile_core_ownership", True), "tiling.tile_core_ownership"
+        ),
+        containment_deduplication=_coerce_bool(
+            data.get("containment_deduplication", True), "tiling.containment_deduplication"
+        ),
+        profile=_optional_str(data.get("profile")),
+    )
+
+
 def _reject_unknown_sections(raw: dict[str, Any]) -> None:
-    known = {"project", "quality", "imaging", "classifier", "dataset", "registry", "detector"}
+    known = {
+        "project",
+        "quality",
+        "imaging",
+        "classifier",
+        "dataset",
+        "registry",
+        "detector",
+        "tiling",
+        "detector_profile",
+    }
     unknown = sorted(set(raw) - known)
     if unknown:
         raise ConfigError(f"Unknown config sections: {unknown}")

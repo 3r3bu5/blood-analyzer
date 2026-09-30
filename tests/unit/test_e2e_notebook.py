@@ -31,7 +31,8 @@ def test_e2e_notebook_contains_runtime_and_visualization_code() -> None:
     for token in [
         "YOLO(",
         "classify_crop(",
-        "models/txl-pbc-yolo26n-v0.1",
+        "wbc-detector-multidomain-yolo26n-a",
+        "detector_leukemia_test_only.json",
         "models/mll23-dinobloom-b-mlp-v0.1",
         "models/backbones/dinobloom-b.pth",
         "imshow",

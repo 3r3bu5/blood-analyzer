@@ -14,9 +14,11 @@ class Detection:
     y2: float
     score: float
     label: str = "wbc_candidate"
+    box_status: str = "accepted"
+    box_review_reasons: tuple[str, ...] = ()
 
-    def to_dict(self) -> dict[str, float | str]:
-        return {
+    def to_dict(self) -> dict[str, float | str | list[str]]:
+        data: dict[str, float | str | list[str]] = {
             "x1": self.x1,
             "y1": self.y1,
             "x2": self.x2,
@@ -24,6 +26,10 @@ class Detection:
             "score": self.score,
             "label": self.label,
         }
+        if self.box_status != "accepted" or self.box_review_reasons:
+            data["box_status"] = self.box_status
+            data["box_review_reasons"] = list(self.box_review_reasons)
+        return data
 
 
 class CandidateCellDetector(Protocol):

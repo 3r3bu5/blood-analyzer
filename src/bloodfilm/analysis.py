@@ -48,16 +48,26 @@ def analyze_field_image(
         if len(probabilities) != 18:
             raise ConfigError("Classifier field analysis output must contain 18 probabilities")
         decision = prediction.get("decision", {})
+        box_status = detection.box_status
+        box_review_reasons = list(detection.box_review_reasons)
+        classifier_status = decision.get("status", "unknown")
+        classification_status = "review" if box_status == "review" else classifier_status
+        uncertainty_reasons = list(decision.get("uncertainty_reasons", []))
+        if box_status == "review" and "localization_quality" not in uncertainty_reasons:
+            uncertainty_reasons.append("localization_quality")
         cells.append(
             {
                 "cell_id": cell_id,
                 "box": _box_dict(detection),
+                "box_status": box_status,
+                "box_review_reasons": box_review_reasons,
                 "crop_box": crop_box,
                 "detector_confidence": detection.score,
                 "predicted_class": decision.get("label"),
                 "classification_confidence": decision.get("confidence"),
-                "decision_status": decision.get("status", "unknown"),
-                "uncertainty_reasons": decision.get("uncertainty_reasons", []),
+                "classification_status": classification_status,
+                "decision_status": classification_status,
+                "uncertainty_reasons": uncertainty_reasons,
                 "probabilities": probabilities,
                 "crop_path": str(crop_path),
                 "detector_version": detector.version,

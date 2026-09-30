@@ -12,6 +12,23 @@ class FixtureDetector:
         return [Detection(x1=1, y1=1, x2=5, y2=5, score=0.91)]
 
 
+class ReviewDetector:
+    version = "review-detector-v1"
+
+    def detect(self, image_rgb: object) -> list[Detection]:
+        return [
+            Detection(
+                x1=1,
+                y1=1,
+                x2=5,
+                y2=5,
+                score=0.91,
+                box_status="review",
+                box_review_reasons=("localization_quality",),
+            )
+        ]
+
+
 class FixtureClassifier:
     version = "fixture-classifier-v1"
 
@@ -57,8 +74,32 @@ def test_analyze_field_image_returns_structured_cell_json(tmp_path: Path) -> Non
     assert cell["detector_confidence"] == 0.91
     assert cell["predicted_class"] == "monocyte"
     assert cell["classification_confidence"] == 0.87
+    assert cell["box_status"] == "accepted"
+    assert cell["box_review_reasons"] == []
+    assert cell["classification_status"] == "accepted"
     assert cell["decision_status"] == "accepted"
     assert cell["detector_version"] == "fixture-detector-v1"
     assert cell["classifier_version"] == "fixture-classifier-v1"
     assert len(cell["probabilities"]) == 18
     assert Path(cell["crop_path"]).exists()
+
+
+def test_analyze_field_image_keeps_flagged_localization_in_review(tmp_path: Path) -> None:
+    image = tmp_path / "field.png"
+    write_rgb_png(image, 8, 8, [(128, 128, 128)] * 64)
+
+    result = analyze_field_image(
+        image,
+        detector=ReviewDetector(),
+        classifier=FixtureClassifier(),
+        crop_dir=tmp_path / "crops",
+    )
+
+    cell = result["cells"][0]
+    assert cell["predicted_class"] == "monocyte"
+    assert cell["classification_confidence"] == 0.87
+    assert cell["box_status"] == "review"
+    assert cell["box_review_reasons"] == ["localization_quality"]
+    assert cell["classification_status"] == "review"
+    assert cell["decision_status"] == "review"
+    assert "localization_quality" in cell["uncertainty_reasons"]

@@ -9,9 +9,15 @@ from bloodfilm.classification.png import write_rgb_png
 from bloodfilm.detection.detector import Detection
 from bloodfilm.detection.metrics import evaluate_detections, threshold_selection_report
 from bloodfilm.detection.roi import FieldROI, detect_field_roi
+from bloodfilm.detection.tiling import (
+    detection_center_in_tile_core,
+    generate_tiles,
+    global_deduplicate,
+    map_tile_detection,
+)
 from bloodfilm.documents import write_json
 from bloodfilm.errors import ConfigError, InputNotFoundError, ModelLoadError
-from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, load_image, probe_image
+from bloodfilm.imaging.io import SUPPORTED_IMAGE_EXTENSIONS, ImageData, load_image, probe_image
 
 DEFAULT_SWEEP_THRESHOLDS = (0.05, 0.10, 0.15, 0.25, 0.35, 0.50)
 
@@ -113,6 +119,8 @@ def run_prediction_sweep(
     iou_threshold: float = 0.5,
     image_size: int = 640,
     preprocessing_mode: str = "full_field",
+    tile_size: int = 512,
+    overlap_ratio: float = 0.20,
 ) -> dict[str, Any]:
     """Run a YOLO bundle's weights over images once per threshold.
 
@@ -129,12 +137,19 @@ def run_prediction_sweep(
         raise ConfigError("No sweep thresholds supplied")
     if preprocessing_mode not in {"full_field", "field_roi", "tiled", "field_roi_tiled"}:
         raise ConfigError(f"Unsupported preprocessing mode: {preprocessing_mode}")
+    if tile_size <= 0:
+        raise ConfigError("tile_size must be positive")
+    if not 0.0 <= overlap_ratio < 1.0:
+        raise ConfigError("overlap_ratio must be in [0, 1)")
     model = _load_yolo(weights_path)
     roi_by_image = _roi_by_image(images, preprocessing_mode=preprocessing_mode)
+    use_tiling = preprocessing_mode in {"tiled", "field_roi_tiled"}
     results: list[dict[str, Any]] = []
     for threshold in thresholds:
         started = time.perf_counter()
         boxes_by_image: dict[str, list[dict[str, float]]] = {}
+        box_quality_flags_by_image: dict[str, list[list[str]]] = {}
+        counts_by_image: dict[str, dict[str, int | bool]] = {}
         total = 0
         with tempfile.TemporaryDirectory(prefix="bloodfilm-detector-sweep-") as temp_dir:
             temp_root = Path(temp_dir)
@@ -143,16 +158,44 @@ def run_prediction_sweep(
                 roi = roi_by_image.get(image.stem)
                 if roi is not None:
                     prediction_image = _write_roi_crop(image, roi, temp_root / f"{image.stem}.png")
-                boxes = _predict_boxes(
-                    model,
-                    prediction_image,
-                    confidence=threshold,
-                    iou=iou_threshold,
-                    image_size=image_size,
-                )
+                tile_flags_by_box: dict[tuple[float, float, float, float], list[str]] = {}
+                if use_tiling:
+                    boxes, stage_counts, tile_flags_by_box = _predict_tiled_boxes(
+                        model,
+                        prediction_image,
+                        temp_root / image.stem,
+                        confidence=threshold,
+                        iou=iou_threshold,
+                        image_size=image_size,
+                        tile_size=tile_size,
+                        overlap_ratio=overlap_ratio,
+                    )
+                else:
+                    boxes = _predict_boxes(
+                        model,
+                        prediction_image,
+                        confidence=threshold,
+                        iou=iou_threshold,
+                        image_size=image_size,
+                    )
+                    stage_counts = _single_image_stage_counts(len(boxes))
                 if roi is not None:
+                    tile_flags_by_box = _map_detection_flags_to_roi(tile_flags_by_box, roi)
                     boxes = [_map_roi_detection(box, roi) for box in boxes]
+                quality_flags_by_image = _quality_flags_by_detection(
+                    boxes,
+                    image_width=probe_image(image).width,
+                    image_height=probe_image(image).height,
+                    inherited_flags=tile_flags_by_box,
+                )
+                boxes = _mark_review_boxes(boxes, quality_flags_by_image)
                 boxes_by_image[image.stem] = [_box_dict(box) for box in boxes]
+                box_quality_flags_by_image[image.stem] = quality_flags_by_image
+                counts_by_image[image.stem] = {
+                    **stage_counts,
+                    "sent_to_classifier_count": len(boxes),
+                    "box_review_count": sum(1 for flags in quality_flags_by_image if flags),
+                }
                 total += len(boxes)
         elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         results.append(
@@ -162,6 +205,8 @@ def run_prediction_sweep(
                 "detection_count": total,
                 "detections_per_image": total / len(images),
                 "latency_ms": elapsed_ms,
+                "counts_by_image": counts_by_image,
+                "box_quality_flags_by_image": box_quality_flags_by_image,
                 "boxes_by_image": boxes_by_image,
             }
         )
@@ -172,6 +217,9 @@ def run_prediction_sweep(
         "iou_threshold": iou_threshold,
         "image_size": image_size,
         "preprocessing_mode": preprocessing_mode,
+        "tile_size": tile_size if use_tiling else None,
+        "overlap_ratio": overlap_ratio if use_tiling else None,
+        "maximum_detection_limit": None,
         "images": [str(image) for image in images],
         "roi_by_image": {image_id: roi.to_dict() for image_id, roi in roi_by_image.items()},
         "candidates": results,
@@ -272,11 +320,243 @@ def _map_roi_detection(detection: Detection, roi: FieldROI) -> Detection:
         y2=detection.y2 + roi.y1,
         score=detection.score,
         label=detection.label,
+        box_status=detection.box_status,
+        box_review_reasons=detection.box_review_reasons,
     )
 
 
-def _box_dict(box: Detection) -> dict[str, float]:
-    return {"x1": box.x1, "y1": box.y1, "x2": box.x2, "y2": box.y2, "score": box.score}
+def _mark_review_boxes(
+    detections: list[Detection], quality_flags_by_detection: list[list[str]]
+) -> list[Detection]:
+    marked: list[Detection] = []
+    for detection, flags in zip(detections, quality_flags_by_detection):
+        if not flags:
+            marked.append(detection)
+            continue
+        reasons = tuple(dict.fromkeys((*detection.box_review_reasons, "localization_quality")))
+        marked.append(
+            Detection(
+                x1=detection.x1,
+                y1=detection.y1,
+                x2=detection.x2,
+                y2=detection.y2,
+                score=detection.score,
+                label=detection.label,
+                box_status="review",
+                box_review_reasons=reasons,
+            )
+        )
+    return marked
+
+
+def _single_image_stage_counts(count: int) -> dict[str, int | bool]:
+    return {
+        "raw_yolo_proposals_count": count,
+        "post_confidence_count": count,
+        "post_tile_merge_count": count,
+        "post_global_nms_count": count,
+        "post_box_sanity_count": count,
+        "maximum_detection_limit_applied": False,
+    }
+
+
+def _predict_tiled_boxes(
+    model: Any,
+    image: Path,
+    output_root: Path,
+    *,
+    confidence: float,
+    iou: float,
+    image_size: int,
+    tile_size: int,
+    overlap_ratio: float,
+) -> tuple[
+    list[Detection],
+    dict[str, int | bool],
+    dict[tuple[float, float, float, float], list[str]],
+]:
+    image_data = load_image(image)
+    tiles = generate_tiles(
+        image_data.width,
+        image_data.height,
+        tile_size=tile_size,
+        overlap_ratio=overlap_ratio,
+    )
+    merged: list[Detection] = []
+    tile_flags_by_box: dict[tuple[float, float, float, float], list[str]] = {}
+    raw_count = 0
+    output_root.mkdir(parents=True, exist_ok=True)
+    for tile in tiles:
+        tile_path = output_root / f"{tile.tile_id}.png"
+        _write_tile_crop(image_data, tile.x1, tile.y1, tile.x2, tile.y2, tile_path)
+        tile_boxes = _predict_boxes(
+            model,
+            tile_path,
+            confidence=confidence,
+            iou=iou,
+            image_size=image_size,
+        )
+        raw_count += len(tile_boxes)
+        for box in tile_boxes:
+            mapped = map_tile_detection(
+                box, tile, image_width=image_data.width, image_height=image_data.height
+            )
+            if detection_center_in_tile_core(
+                mapped,
+                tile,
+                tiles,
+                image_width=image_data.width,
+                image_height=image_data.height,
+            ):
+                merged.append(mapped)
+                flags = _tile_boundary_flags(
+                    box, tile, image_width=image_data.width, image_height=image_data.height
+                )
+                if flags:
+                    tile_flags_by_box[_detection_key(mapped)] = flags
+    kept = global_deduplicate(merged, iou_threshold=iou)
+    kept_flags = {
+        _detection_key(detection): tile_flags_by_box[_detection_key(detection)]
+        for detection in kept
+        if _detection_key(detection) in tile_flags_by_box
+    }
+    return (
+        kept,
+        {
+            "tile_count": len(tiles),
+            "raw_yolo_proposals_count": raw_count,
+            "post_confidence_count": raw_count,
+            "post_tile_core_count": len(merged),
+            "post_tile_merge_count": len(merged),
+            "post_global_nms_count": len(kept),
+            "post_global_dedup_count": len(kept),
+            "post_box_sanity_count": len(kept),
+            "maximum_detection_limit_applied": False,
+        },
+        kept_flags,
+    )
+
+
+def _write_tile_crop(
+    image: ImageData, x1: int, y1: int, x2: int, y2: int, output_path: Path
+) -> None:
+    pixels: list[tuple[int, int, int]] = []
+    for y in range(y1, y2):
+        for x in range(x1, x2):
+            offset = (y * image.width + x) * image.channels
+            channels = image.pixels[offset : offset + image.channels]
+            if len(channels) == 1:
+                pixels.append((channels[0], channels[0], channels[0]))
+            else:
+                pixels.append((channels[0], channels[1], channels[2]))
+    write_rgb_png(output_path, x2 - x1, y2 - y1, pixels)
+
+
+def _quality_flags_by_detection(
+    detections: list[Detection],
+    *,
+    image_width: int,
+    image_height: int,
+    inherited_flags: dict[tuple[float, float, float, float], list[str]],
+) -> list[list[str]]:
+    if not detections:
+        return []
+    areas = sorted(_area(detection) for detection in detections if _area(detection) > 0)
+    median_area = areas[len(areas) // 2] if areas else 0.0
+    flags_by_index: list[list[str]] = []
+    for index, detection in enumerate(detections):
+        flags = list(inherited_flags.get(_detection_key(detection), []))
+        width = detection.x2 - detection.x1
+        height = detection.y2 - detection.y1
+        area = width * height if width > 0 and height > 0 else 0.0
+        if median_area > 0 and area > median_area * 2.5:
+            flags.append("large_area_vs_field_median")
+        if width > image_width * 0.20 or height > image_height * 0.20:
+            flags.append("large_axis_vs_field")
+        if width > 0 and height > 0 and max(width / height, height / width) > 3.0:
+            flags.append("extreme_aspect_ratio")
+        if _contains_other_detection(detection, detections, current_index=index):
+            flags.append("contains_smaller_candidate")
+        flags_by_index.append(sorted(set(flags)))
+    return flags_by_index
+
+
+def _tile_boundary_flags(
+    detection: Detection, tile: Any, *, image_width: int, image_height: int
+) -> list[str]:
+    flags: list[str] = []
+    tolerance = 2.0
+    tile_width = float(tile.x2 - tile.x1)
+    tile_height = float(tile.y2 - tile.y1)
+    touches_left = detection.x1 <= tolerance and tile.x1 > 0
+    touches_top = detection.y1 <= tolerance and tile.y1 > 0
+    touches_right = detection.x2 >= tile_width - tolerance and tile.x2 < image_width
+    touches_bottom = detection.y2 >= tile_height - tolerance and tile.y2 < image_height
+    if touches_left or touches_top or touches_right or touches_bottom:
+        flags.append("internal_tile_boundary_truncation")
+    return flags
+
+
+def _contains_other_detection(
+    detection: Detection, detections: list[Detection], *, current_index: int
+) -> bool:
+    detection_area = _area(detection)
+    if detection_area <= 0:
+        return False
+    for index, other in enumerate(detections):
+        if index == current_index:
+            continue
+        other_area = _area(other)
+        if other_area <= 0 or other_area >= detection_area:
+            continue
+        intersection = _intersection_area(detection, other)
+        if intersection / other_area >= 0.85:
+            return True
+    return False
+
+
+def _intersection_area(left: Detection, right: Detection) -> float:
+    width = max(0.0, min(left.x2, right.x2) - max(left.x1, right.x1))
+    height = max(0.0, min(left.y2, right.y2) - max(left.y1, right.y1))
+    return width * height
+
+
+def _area(detection: Detection) -> float:
+    return max(0.0, detection.x2 - detection.x1) * max(0.0, detection.y2 - detection.y1)
+
+
+def _detection_key(detection: Detection) -> tuple[float, float, float, float]:
+    return (
+        round(detection.x1, 3),
+        round(detection.y1, 3),
+        round(detection.x2, 3),
+        round(detection.y2, 3),
+    )
+
+
+def _map_detection_flags_to_roi(
+    flags_by_box: dict[tuple[float, float, float, float], list[str]], roi: FieldROI
+) -> dict[tuple[float, float, float, float], list[str]]:
+    mapped: dict[tuple[float, float, float, float], list[str]] = {}
+    for key, flags in flags_by_box.items():
+        x1, y1, x2, y2 = key
+        detection = Detection(x1=x1, y1=y1, x2=x2, y2=y2, score=1.0)
+        mapped[_detection_key(_map_roi_detection(detection, roi))] = flags
+    return mapped
+
+
+def _box_dict(box: Detection) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "x1": box.x1,
+        "y1": box.y1,
+        "x2": box.x2,
+        "y2": box.y2,
+        "score": box.score,
+    }
+    if box.box_status != "accepted" or box.box_review_reasons:
+        data["box_status"] = box.box_status
+        data["box_review_reasons"] = list(box.box_review_reasons)
+    return data
 
 
 def _load_yolo(weights_path: Path) -> Any:

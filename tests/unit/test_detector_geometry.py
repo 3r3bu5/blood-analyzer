@@ -84,6 +84,40 @@ def test_global_nms_merges_duplicate_boxes_deterministically() -> None:
     assert [(row.x1, row.y1) for row in kept] == [(1, 1), (30, 30)]
 
 
+def test_tile_core_assigns_overlap_region_to_one_tile() -> None:
+    from bloodfilm.detection.tiling import Tile, detection_center_in_tile_core, tile_core
+
+    tiles = [Tile(0, 0, 100, 100, "left"), Tile(50, 0, 150, 100, "right")]
+
+    assert tile_core(tiles[0], tiles, image_width=150, image_height=100).to_dict() == {
+        "x1": 0,
+        "y1": 0,
+        "x2": 75,
+        "y2": 100,
+        "tile_id": "left-core",
+    }
+    assert detection_center_in_tile_core(
+        Detection(55, 10, 65, 20, 0.9), tiles[0], tiles, image_width=150, image_height=100
+    )
+    assert not detection_center_in_tile_core(
+        Detection(90, 10, 100, 20, 0.9), tiles[0], tiles, image_width=150, image_height=100
+    )
+
+
+def test_global_deduplicate_removes_contained_center_match() -> None:
+    from bloodfilm.detection.tiling import global_deduplicate
+
+    detections = [
+        Detection(0, 0, 40, 40, 0.9),
+        Detection(4, 4, 36, 36, 0.8),
+        Detection(70, 0, 110, 40, 0.7),
+    ]
+
+    kept = global_deduplicate(detections, iou_threshold=0.6)
+
+    assert [round(row.score, 2) for row in kept] == [0.9, 0.7]
+
+
 def test_box_sanity_flags_field_sized_box() -> None:
     from bloodfilm.detection.sanity import evaluate_box_sanity
 

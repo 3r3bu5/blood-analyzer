@@ -1,0 +1,9 @@
+{
+  "detector_profile": "dense_field_recall_v0.1",
+  "project": {"seed": 42, "device": "auto", "run_root": "outputs/runs"},
+  "quality": {"min_width": 512, "min_height": 512, "action_on_unusable": "stop"},
+  "imaging": {"crop_padding_ratio": 0.1, "color_normalization": "none", "save_crops": true, "save_annotated": true},
+  "classifier": {"backbone": "dinobloom_b", "weights": "models/backbones/dinobloom-b.pth", "class_names_file": "configs/mappings/mll23.yaml", "num_classes": 18},
+  "detector": {"confidence_threshold": 0.15, "iou_threshold": 0.60},
+  "tiling": {"enabled": true, "tile_size": 384, "overlap_ratio": 0.20, "tile_core_ownership": true, "containment_deduplication": true, "profile": "dense_field_recall_v0.1"}
+}

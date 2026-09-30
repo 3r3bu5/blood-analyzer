@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "research_only": true,
+  "status": "ok",
+  "source_dataset": "LeukemiaAttri",
+  "source_split": "test",
+  "sample_count": 7444,
+  "instance_count": 19078,
+  "image_size": 640,
+  "evaluations": [
+    {
+      "experiment": "A_finetune_txl_pbc",
+      "weights": "outputs/detector_multidomain/wbc-detector-multidomain-yolo26n-a/weights/best.pt",
+      "metrics": {
+        "metrics/precision(B)": 0.855,
+        "metrics/recall(B)": 0.933,
+        "metrics/mAP50(B)": 0.925,
+        "metrics/mAP50-95(B)": 0.546
+      },
+      "save_dir": "/kaggle/working/blood/runs/detect/val"
+    },
+    {
+      "experiment": "B_clean_pretrained",
+      "weights": "outputs/detector_multidomain/wbc-detector-multidomain-yolo26n-b/weights/best.pt",
+      "metrics": {
+        "metrics/precision(B)": 0.831,
+        "metrics/recall(B)": 0.876,
+        "metrics/mAP50(B)": 0.889,
+        "metrics/mAP50-95(B)": 0.482
+      },
+      "save_dir": "/kaggle/working/blood/runs/detect/val-2"
+    }
+  ],
+  "pairwise_deltas": {
+    "status": "ok",
+    "first": "A_finetune_txl_pbc",
+    "second": "B_clean_pretrained",
+    "delta_second_minus_first": {
+      "metrics/precision(B)": -0.024,
+      "metrics/recall(B)": -0.057,
+      "metrics/mAP50(B)": -0.036,
+      "metrics/mAP50-95(B)": -0.064
+    }
+  },
+  "decision": {
+    "selected_experiment": "A_finetune_txl_pbc",
+    "rejected_experiment": "B_clean_pretrained",
+    "reason": "A has materially better LeukemiaAttri source-test generalization; B's small unified-validation advantage did not hold on the held-out LeukemiaAttri test fold."
+  }
+}

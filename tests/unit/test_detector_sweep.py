@@ -141,6 +141,35 @@ def test_run_prediction_sweep_field_roi_maps_boxes_to_original_coordinates(
     assert report["roi_by_image"]["field"]["method"] == "auto_illuminated_region"
 
 
+def test_run_prediction_sweep_tiled_records_stage_counts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"weights")
+    image = tmp_path / "field.png"
+    write_rgb_png(image, 20, 20, [(1, 2, 3)] * 400)
+    _install_fake_yolo(monkeypatch, scores_by_threshold={0.25: [0.9]})
+
+    report = run_prediction_sweep(
+        weights,
+        [image],
+        [0.25],
+        preprocessing_mode="tiled",
+        tile_size=12,
+        overlap_ratio=0.0,
+    )
+
+    candidate = report["candidates"][0]
+    counts = candidate["counts_by_image"]["field"]
+    assert report["tile_size"] == 12
+    assert report["overlap_ratio"] == 0.0
+    assert report["maximum_detection_limit"] is None
+    assert counts["tile_count"] == 4
+    assert counts["raw_yolo_proposals_count"] == 4
+    assert counts["post_global_nms_count"] == candidate["detection_count"]
+    assert counts["maximum_detection_limit_applied"] is False
+
+
 def test_run_prediction_sweep_rejects_missing_weights(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

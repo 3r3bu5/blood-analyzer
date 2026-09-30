@@ -285,6 +285,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     detector_sweep.add_argument("--iou", type=float, default=0.5)
     detector_sweep.add_argument("--imgsz", type=int, default=640)
+    detector_sweep.add_argument("--tile-size", type=int, default=512)
+    detector_sweep.add_argument("--overlap", type=float, default=0.20)
     detector_sweep.add_argument("--labels", type=Path, default=None)
     detector_sweep.add_argument("--target-recall", type=float, default=0.95)
     detector_sweep.add_argument("--max-false-positives-per-image", type=float, default=2.0)
@@ -701,6 +703,8 @@ def _detector_sweep(args: argparse.Namespace) -> int:
         iou_threshold=args.iou,
         image_size=args.imgsz,
         preprocessing_mode=args.mode,
+        tile_size=args.tile_size,
+        overlap_ratio=args.overlap,
     )
     if args.labels is not None:
         # YOLO filtering is monotonic in confidence, so the lowest-threshold
